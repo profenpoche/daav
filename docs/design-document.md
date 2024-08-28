@@ -96,27 +96,7 @@ Expected requests time :
 
 ### Direct Integrations with Other BBs
 
-*What other BBs does this BB interact with directly (without the connector)?*
-
-- potentially All
-
-*How?*
-
-- API
-- Files / folder
-- Direct integration of web component in front-end (DDV)
-
-*Why?*
-
-- to work outside of Prometheus-X.
-- to use others BB in the process of manipulating data. For example, before sending them though PDC or use in another system.
-
-### Integrations via Connector
-
-*Why?*
-
-- Connector is used to manage permission on DATA though contract and consent.
-- Catalog is used to list contracted resources.
+No other building block interacting with this building block requires specific integration.
 
 ## Relevant Standards
 
@@ -140,6 +120,7 @@ DSSC :
 ## Input / Output Data
 
 ![DAAV - Input and output Data](https://profenpoche.com/wp-content/uploads/2024/07/002.jpg)
+![DAAV - Sample data](https://profenpoche.com/wp-content/uploads/2024/08/ptx-daav-input-output-data-samples.png)
 
 ## Project interface
 
@@ -196,15 +177,31 @@ title: Sequence Diagram Example (Connector Data Exchange)
 
 sequenceDiagram
     participant i1 as Input Data Block (Data Source)
+    participant ddvcon as PDC
+    participant con as Contract Service
+    participant cons as Consent Service
+    participant dpcon as Data Provider Connector
+    participant dp as Participant (Data Provider)
     participant i2 as Transformer Block
     participant i3 as Merge Block
     participant i4 as Output Data Block
-		participant enduser as End User
-
-    i1 -) i2: Provide data connection
-		Note over i2 : setup of transformation
+    participant enduser as End User
+    i1 -) ddvcon:: Trigger consent-driven data exchange<br>BY USING CONSENT 
+    ddvcon -) cons: Verify consent validity
+    cons -) con: Verify contract signature & status
+    con --) cons: Contract verified
+    cons -) ddvcon: Consent verified
+    ddvcon -) con: Verify contract & policies
+    con --) ddvcon: Verified contract
+    ddvcon -) dpcon: Data request + contract + consent
+    dpcon -) dp: GET data
+    dp --) dpcon: Data
+    dpcon --) ddvcon: Data
+    ddvcon --) i1: Data
+    i1 -) i2: Provide data connection or data
+    Note over i2 : setup of transformation
     i2 -) i3: Provide data
-  	Note over i3 : setup merge with another data source
+    Note over i3 : setup merge with another data source
     i3 -) i4: Provide data
     Note over i4 : new data is available
     enduser -) i4: Read file directly from local filesystem
@@ -335,12 +332,13 @@ cluster=014
 ```
 
 ## Third Party Components & Licenses
-*all opensource projects*
-- retejs.
-- ionic/angular/material.
-- FastAPI.
-- python data librairies : **DuckDB**, PyArrows, Numpy.
-- database : mysql, mongodb, elasticsearch.
+
+- retejs MIT license
+- ionic/angular/material MIT license
+- FastAPI MIT license
+- DuckDB MIT license
+- PyArrows Apache License
+
 
 ## Implementation Details
 
@@ -534,14 +532,36 @@ Front end : Selenium to test custom node usage deploy and interaction with custo
 
 *Enumerate all partner organizations and specify their roles in the development and planned operation of this component. Do this at a level which a)can be made public, b)supports the understanding of the concrete technical contributions (instead of "participates in development" specify the functionality, added value, etc.)*
 
-```bash
-#Work in progress
-```
+[Profenpoche](https://profenpoche.com/) (BB leader):
+
+- Organize workshops
+- Develop backend of DAAV
+- Develop frontend of DAAV
+
+[Inokufu](https://www.inokufu.com/) :
+
+- BB validation
+
+BME, cabrilog and Ikigaï are also partners available for beta-testing.
 
 ## Usage in the dataspace
 
 *Specify the Dataspace Enalbing Service Chain in which the BB will be used. This assumes that during development the block (lead) follows the service chain, contributes to this detailed design and implements the block to meet the integration requirements of the chain.*
 
-```bash
-#Work in progress
-```
+The Daav building block can be used as a data transformer to build new datasets from local data or from prometheus dataspace.
+
+The output can also be share on prometheus dataspace.
+
+Example 1
+![Chain service 001](https://profenpoche.com/wp-content/uploads/2024/08/Prometheus-X-Frame-9.jpg)
+Example 2
+![Chain service 002](https://profenpoche.com/wp-content/uploads/2024/08/Prometheus-X-Frame-5.jpg)
+Example 3
+![Chain service 003](https://profenpoche.com/wp-content/uploads/2024/08/Prometheus-X-Frame-7.jpg)
+Example 4
+![Chain service 004](https://profenpoche.com/wp-content/uploads/2024/08/Prometheus-X-Frame-8.jpg)
+Example 5
+![Chain service 005](https://profenpoche.com/wp-content/uploads/2024/08/Prometheus-X-Frame-10.jpg)
+Example 6
+![Chain service 006](https://profenpoche.com/wp-content/uploads/2024/08/Prometheus-X-Frame-11.jpg)
+
