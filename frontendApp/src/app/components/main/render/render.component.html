@@ -1,0 +1,215 @@
+@if(data.fiche){
+<!-- For multiple db/cluster and index/table/collection -->
+<mat-tab-group class="render-tab-group" [selectedIndex]="data.renderTabIndex" [(selectedIndex)]="data.renderTabIndex"
+  animationDuration="0ms">
+  <!-- FIRST TAB INFORMATIONS-->
+  <mat-tab dynamicHeight label="Informations" #tabInfos>
+    <h1>Name : {{ data.selectedDataset["name"] }}</h1>
+    <div id="dashboard-container" #dashboardContainer>
+      <div id="dashboard-container-anchor" #dashboardContainerAnchor style="display: none;"></div>
+    </div>
+  </mat-tab>
+
+  @if ((data.dbNames !== null && data.tableNames !== null) || (data.dbNames ===
+  null && data.tableNames !== null)) {
+  @if (data.dbNames !== null && data.tableNames !== null) {
+  <!-- Multiple db/cluster -->
+  <mat-tab dynamicHeight label="Datasets" #tab>
+    <ion-accordion-group [multiple]="true" [value]="data.dbNames">
+      @for(db of data.dbNames;track db; let x = $index){
+      <ion-accordion value="{{ db }}">
+        <ion-item class="db-name" slot="header">
+          <ion-icon class="ion-accordion-toggle-icon" name="chevron-down-outline" slot="start">
+          </ion-icon>
+          <ion-label>
+            {{ db }}
+            <span class="counter">({{ data.tableNames[x].length }})</span>
+          </ion-label>
+        </ion-item>
+        <div slot="content">
+          <ion-list class="dataset-list dataset-list-multi">
+            @for(table of data.tableNames[x];track table; let i = $index){
+            <ion-item class="dataset-container">
+              <ion-button expand="full" fill="clear" class="table-name" (click)="getDatasetContent(null, db, table, 2)"
+                (ionFocus)="selectedDataset($event)">
+                <span><em class="counter">{{ i + 1 }}</em>{{ table }}</span>
+              </ion-button>
+            </ion-item>
+            }
+          </ion-list>
+        </div>
+      </ion-accordion>
+      }
+    </ion-accordion-group>
+  </mat-tab>
+  } @else if (data.dbNames === null && data.tableNames !== null) {
+  <!-- Multiple index/table/collection -->
+  <mat-tab dynamicHeight label="Datasets ({{ data.tableNames.length }})" #tab>
+    <div>
+      <label>Filter</label>
+      <input matInput (keyup)="applyFilter($event)" placeholder="Ex. ium" #input>
+    </div>
+    <ion-list class="dataset-list dataset-list-single">
+      @for(table of data.tableNames;track table; let i = $index){
+      @if(filterTables === "" || String(table).toLowerCase().indexOf(filterTables) > -1){
+
+      <ion-item class="dataset-container">
+        <ion-button expand="full" fill="clear" class="table-name" (click)="getDatasetContent(null, null, table, 2)"
+          (ionFocus)="selectedDataset($event)">
+          <span><em class="counter">{{ i + 1 }}</em>{{ table }}</span>
+        </ion-button>
+      </ion-item>
+      }
+      }
+    </ion-list>
+  </mat-tab>
+  }
+  <mat-tab dynamicHeight label="{{
+      data.datasetParams.database
+        ? data.datasetParams.database + ' / '
+        : data.selectedDataset['database'] + ' / '
+    }}{{ data.datasetParams.table ? data.datasetParams.table : '' }}" [disabled]="!data.datasetParams.table" #tab>
+    <div id="table-paginator-container">
+      <div class="table-infos">
+        Name: <span>{{ data.selectedDataset["name"] }}</span> Type:
+        <span class="data-type-info">{{ data.selectedDataset["type"] }}</span>
+        @if (data.selectedDataset['host']) { Host:
+        <span>{{ data.selectedDataset["host"] }}</span> } @if
+        (data.selectedDataset['uri']) { Uri:
+        <span>{{ data.selectedDataset["uri"] }}</span> } @if
+        (data.selectedDataset['type'] === 'elastic') { Index:
+        <span>{{ data.datasetParams.table }}</span> } @else if(data.selectedDataset['type'] === 'mongo' ||
+        data.selectedDataset['type'] === 'mysql'){
+        @if(data.selectedDataset['database']){ Database:
+        <span>{{ data.selectedDataset["database"] }}</span> Colletion:
+        <span>{{ data.datasetParams.table }}</span> } @else { Database:
+        <span>{{ data.datasetParams.database }}</span> Colletion:
+        <span>{{ data.datasetParams.table }}</span>
+        } }
+      </div>
+      <!-- Pour le premier mat-paginator (cas avec database/table) -->
+      @if(data.fiche.total){
+      <mat-paginator #paginator (page)="pageChange($event)" [pageIndex]="0" [length]="data.fiche.total"
+        [pageSize]="data.pagination.perPage" [pageSizeOptions]="pageSizeOptions" showFirstLastButtons>
+      </mat-paginator>
+      }
+
+      <div class="table-container">
+        <table mat-table [dataSource]="data.fiche.items">
+          @for(col of data.displayedColumns;track col){
+          <ng-container [matColumnDef]="col">
+            <th mat-header-cell *matHeaderCellDef>{{ col }}</th>
+            @if(col === 'media'){
+            <td mat-cell *matCellDef="let element">
+              @if (element['mime_type'].includes('image')) {
+              <img src="data:{{ element['mime_type'] }};base64,{{ element[col] }}" alt="" />
+              } @else if (element['mime_type'].includes('video')) {
+              <video src="data:{{ element['mime_type'] }};base64,{{ element[col] }}" controls></video>
+              } @else if (element['mime_type'].includes('audio')) {
+              <audio controls="controls" autobuffer="autobuffer">
+                <source src="data:{{ element['mime_type'] }};base64,{{
+                    element[col]
+                  }}" />
+              </audio>
+              }
+            </td>
+            } @else{
+            <td mat-cell *matCellDef="let element">
+              @if(isObject(element[col])){
+              <span class="cell-container json-viewer">
+                <ngx-json-viewer [json]="element[col]" [expanded]="false" [depth]="1"></ngx-json-viewer>
+              </span>
+              } @else {
+              <span class="cell-container">
+                {{ element[col] }}
+              </span>
+              }
+            </td>
+            }
+          </ng-container>
+          }
+          <tr mat-header-row *matHeaderRowDef="data.displayedColumns; sticky: true"></tr>
+          <tr mat-row *matRowDef="let row; columns: data.displayedColumns"></tr>
+        </table>
+      </div>
+    </div>
+  </mat-tab>
+  }
+  @if(data.dbNames === null && data.tableNames === null && data.fiche.items){
+  <mat-tab label="Data" #tabData class="mat-tab-no-scroll" dynamicHeight>
+    <div class="mat-tab-body-fixed-height">
+      <!-- Single db/cluster and index/table/collection -->
+      <div class="table-infos">
+        Name: <span>{{ data.selectedDataset["name"] }}</span> Type:
+        <span class="data-type-info">{{ data.selectedDataset["type"] }}</span> @if
+        (data.selectedDataset['host']) { Host:
+        <span>{{ data.selectedDataset["host"] }}</span> } @if
+        (data.selectedDataset['uri']) { Uri:
+        <span>{{ data.selectedDataset["uri"] }}</span> } @if
+        (data.selectedDataset['url']) { Url:
+        <span>{{ data.selectedDataset["url"] }}</span> } @if
+        (data.selectedDataset['database']) { Database:
+        <span>{{ data.selectedDataset["database"] }}</span> } @if
+        (data.selectedDataset['index']) { Index:
+        <span>{{ data.selectedDataset["index"] }}</span> } @if
+        (data.selectedDataset['collection']) { Collection:
+        <span>{{ data.selectedDataset["collection"] }}</span> } @if
+        (data.selectedDataset['table']) { Table:
+        <span>{{ data.selectedDataset["table"] }}</span> }
+      </div>
+      <!-- Pour le deuxième mat-paginator (cas single db/cluster) -->
+      @if(data.fiche.items.length > 0 && data.fiche.total){
+      <mat-paginator #paginator (page)="pageChange($event)" [pageIndex]="0" [length]="data.fiche.total"
+        [pageSize]="data.pagination.perPage" [pageSizeOptions]="pageSizeOptions"
+        [showFirstLastButtons]="!(this.data.fiche.nextUrl || this.data.fiche.prevUrl)"
+        [hidePageSize]="(this.data.fiche.nextUrl || this.data.fiche.prevUrl)">
+      </mat-paginator>
+      }
+
+      @if (data.fiche.items.length > 0){
+      <div class="table-container">
+        <table mat-table [dataSource]="data.fiche.items">
+          @for(col of data.displayedColumns;track col){
+          <ng-container [matColumnDef]="col">
+            <th mat-header-cell *matHeaderCellDef>{{ col }}</th>
+            @if(col === 'media'){
+            <td mat-cell *matCellDef="let element">
+              @if (element['mime_type'].includes('image')) {
+              <img src="data:{{ element['mime_type'] }};base64,{{ element[col] }}" alt="" />
+              } @else if (element['mime_type'].includes('video')) {
+              <video src="data:{{ element['mime_type'] }};base64,{{ element[col] }}" controls></video>
+              } @else if (element['mime_type'].includes('audio')) {
+              <audio controls="controls" autobuffer="autobuffer">
+                <source src="data:{{ element['mime_type'] }};base64,{{ element[col] }}" />
+              </audio>
+              }
+            </td>
+            } @else{
+            <td mat-cell *matCellDef="let element">
+              @if(isObject(element[col])){
+              <span class="cell-container json-viewer">
+                <ngx-json-viewer [json]="element[col]" [expanded]="false" [depth]="1"></ngx-json-viewer>
+              </span>
+              } @else {
+              <span class="cell-container">
+                {{ element[col] }}
+              </span>
+              }
+            </td>
+            }
+          </ng-container>
+          }
+          <tr mat-header-row *matHeaderRowDef="data.displayedColumns; sticky: true"></tr>
+          <tr mat-row *matRowDef="let row; columns: data.displayedColumns"></tr>
+        </table>
+      </div>
+      } @else {
+      <div class="json-viewer-full">
+        <ngx-json-viewer [json]="data.fiche.items" [expanded]="true" [depth]="1"></ngx-json-viewer>
+      </div>
+      }
+    </div>
+  </mat-tab>
+  }
+</mat-tab-group>
+}

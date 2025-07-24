@@ -1,0 +1,14 @@
+<ion-button (click)="openModal()" (pointerdown)="$event.stopPropagation()"
+(dblclick)="$event.stopPropagation()" expand="block" [disabled]="!(data.datasets | hasDatasets)" >Filtering</ion-button>
+<ion-modal [isOpen]="isModalOpen" (willDismiss)="onWillDismiss($event)">
+  <ng-template>
+    <ion-header>
+      <ion-title>
+        Manage filter rules
+      </ion-title>
+    </ion-header>
+    <ion-content class="ion-padding" scroll-y="false">
+      <app-data-filter [datasets]="data.datasets" [filterControl]="data"></app-data-filter>
+    </ion-content>
+  </ng-template>
+</ion-modal>

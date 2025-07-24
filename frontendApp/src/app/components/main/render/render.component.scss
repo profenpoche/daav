@@ -1,0 +1,266 @@
+// Render tab ---------------------------------------------------------
+mat-tab-group{
+    height: 100% !important;
+    overflow: hidden;
+    --mdc-tab-indicator-active-indicator-color: var(--darkPtx) !important;
+    --mdc-tab-indicator-indicator-color: var(--darkPtx) !important;
+    --mat-tab-header-active-label-text-color: var(--darkPtx);
+    --mat-tab-header-active-ripple-color: var(--darkPtx);
+    --mat-tab-header-inactive-ripple-color: var(--darkPtx);
+    --mat-tab-header-active-focus-label-text-color: var(--darkPtx);
+    --mat-tab-header-active-hover-label-text-color: var(--darkPtx);
+    --mat-tab-header-active-focus-indicator-color: var(--darkPtx);
+    --mat-tab-header-active-hover-indicator-color: var(--darkPtx);
+}
+
+
+
+.render-tab-group{
+    background-color: var(--white) !important;
+}
+
+// Datasets list ---------------------------------------------------------
+ion-accordion-group{
+    border-bottom: 1px solid var(--darkPtx) !important;
+}
+
+ion-accordion:first-of-type{
+    .db-name::part(native){
+        border-top: 0px solid var(--darkPtx) !important;
+    }
+}
+
+// Datasets list title ---------------------------------------------------------
+.db-name{
+    --padding-start: 2.5%;
+    --padding-end: 20px;
+    --padding-top: 3px;
+    --padding-bottom: 3px;
+    --color-hover: var(--white);
+    --background-hover: var(--darkPtx) !important;
+    --background-hover-opacity: 1;
+    color: var(--darkPtx) !important;
+    font-weight: 700;
+
+    .counter, .ion-accordion-toggle-icon {
+        color: var(--white);
+    }
+
+    .ion-accordion-toggle-icon {
+        margin-inline-end: 16px !important;
+    }
+
+    &:hover{
+        .counter, .ion-accordion-toggle-icon{
+            color: var(--white);
+        }
+    }
+}
+
+.db-name::part(native){
+    transition: var(--custom-transition);
+    background-color: var(--darkPtx) !important;
+    border-bottom: 1px solid var(--grayMedium);
+    border-top: 1px solid var(--darkPtx) !important;
+    color: var(--white);
+}
+
+// Datasets list content ---------------------------------------------------------
+.dataset-list{
+    padding: 0%;
+    overflow-y: scroll;
+}
+
+.dataset-list-multi{
+    max-height: 33vh;
+}
+
+.dataset-container:nth-of-type(odd){
+    &::part(native){
+        background-color: var(--grayLight) !important;
+    }
+}
+
+.dataset-container{
+    --padding-start: 0%;
+    .table-name{
+        --padding-start: 3%;
+    }
+}
+
+.dataset-container::part(native){
+    --inner-padding-end: 0px
+}
+
+.table-name{
+    width: 100%;
+    margin: 0px;
+    height: 100%;
+    font-weight: 500;
+
+    span{
+        color: var(--darkPtx);
+        text-align: left;
+        width: 100%;
+    }
+}
+
+.table-name::part(native){
+    transition: var(--custom-transition);
+    &:hover{
+        background-color: var(--bluePtxLight);
+    }
+}
+
+.active-dataset{
+    background-color: var(--bluePtx) !important;
+    --background-hover: var(--bluePtx);
+    --background-hover-opacity: 1;
+
+    span{
+        color: var(--white) !important;
+    }
+
+    .counter{
+        color: var(--white);
+    }
+}
+
+// Table ---------------------------------------------------------
+mat-paginator {
+    background-color: var(--grayDark) !important;
+    flex-basis: 6%;
+}
+
+.table-container{
+    width: 100% !important;
+
+    overflow: auto !important;
+    display: flex;
+    flex-direction: column;
+    flex-basis: 88% !important;
+    flex-shrink: 1;
+  }
+
+.mat-tab-body-fixed-height{
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+
+}
+
+
+
+
+.table-infos{
+    background-color: var(--darkPtx);
+    // border-left: 1px solid var(--darkPtxLight);
+    color: var(--white);
+    padding: 16px 20px 15px 15px;
+    font-weight: 800;
+    flex-basis: 6%;
+
+    span{
+        font-weight: 500;
+        margin-left: 2px;
+        margin-right: 40px;
+    }
+
+    .data-type-info{
+        text-transform: capitalize !important;
+    }
+}
+
+#table-paginator-container{
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+table{
+    border-bottom: 1px solid var(--grayMedium) !important;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+tr{
+    &:nth-of-type(even){
+        background-color: var(--grayLight);
+    }
+}
+
+
+th{
+    background-color: var(--grayMedium) !important;
+    border-bottom: 1px solid var(--grayDark) !important;
+    border-right: 1px solid var(--grayDark) !important;
+    box-sizing: border-box;
+}
+
+td{
+    border-top: 0px solid var(--grayMedium) !important;
+    border-bottom: 1px solid var(--grayMedium) !important;
+    border-right: 1px solid var(--grayMedium) !important;
+    padding: 0%;
+    height: fit-content;
+
+    .json-viewer{
+        min-width: 200px;
+        max-width: 400px;
+        overflow: auto;
+        --ngx-json-key : var(--bluePtx);
+        --ngx-json-string : var(--black);
+        --ngx-json-number : var(--black);
+        --ngx-json-boolean : var(--black);
+        --ngx-json-date : var(--black);
+        --ngx-json-array : var(--black);
+        --ngx-json-function : var(--black);
+        --ngx-json-null : var(--black);
+        --ngx-json-toggler: var(--darkPtx);
+    }
+}
+
+.json-viewer-full{
+  --ngx-json-key: var(--bluePtx);
+    --ngx-json-string: var(--black);
+    --ngx-json-number: var(--black);
+    --ngx-json-boolean: var(--black);
+    --ngx-json-date: var(--black);
+    --ngx-json-array: var(--black);
+    --ngx-json-function: var(--black);
+    --ngx-json-null: var(--black);
+    --ngx-json-toggler: var(--darkPtx);
+    overflow: auto;
+    padding: 10px;
+    padding: 10px;
+    width: 100% !important;
+    overflow: auto !important;
+    display: flex;
+    flex-direction: column;
+    flex-basis: 94%;
+    flex-shrink: 1;
+}
+
+.cell-container{
+    display: inline-block;
+    height: 100%;
+    width: 100% !important;
+    padding: 15px 15px;
+}
+
+.counter{
+    color: var(--darkPtxLight);
+    font-style: normal;
+    margin-right: 25px;
+    font-family: monospace;
+    font-weight: 300;
+    display: inline-flex;
+    width: 15px;
+}
+
+// Media ---------------------------------------------------------
+img, video, audio {
+    width: 20vw;
+}

@@ -1,0 +1,13 @@
+
+svg{
+    overflow: visible;
+    position: absolute;
+    pointer-events: none;
+
+    path{
+        fill: none;
+        stroke-width: 3px;
+        stroke: var(--connector);
+        pointer-events: auto;
+    }
+}

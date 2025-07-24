@@ -1,0 +1,11 @@
+<mat-form-field>
+  <mat-label *ngIf="data?.label">{{data.label}}</mat-label>
+  <mat-select [(value)]="data.value" (pointerdown)="$event.stopPropagation()"
+  (dblclick)="$event.stopPropagation()" (selectionChange)="this.data.callback?this.data.callback($event):''" (openedChange)="onOpenedChange($event)">
+      <mat-option *ngIf="data?.none">None</mat-option>
+      <mat-option *ngIf="data?.new">New</mat-option>
+    @for (item of data.list; track item) {
+      <mat-option [value]="item.value">{{item.label}}</mat-option>
+    }
+  </mat-select>
+</mat-form-field>

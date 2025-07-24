@@ -1,0 +1,16 @@
+.prometheusLogo{
+    background: url(/assets/icon/prometheus.png) no-repeat;
+    background-size: contain;
+    width: 100%;
+    text-align: center;
+    background-position: center;
+}
+
+.prometheusContainer{
+    height: 6vh;
+    display: flex;
+    text-align: center;
+    justify-content: center;
+    margin: 10px 0px;   
+}
+

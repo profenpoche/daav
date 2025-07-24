@@ -1,0 +1,7 @@
+{
+  "name": "Daav",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}

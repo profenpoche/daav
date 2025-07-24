@@ -1,0 +1,20 @@
+:host {
+
+  display: inline-block;
+  cursor: pointer;
+  border: 0px solid var(--darkPtx);
+  border-radius: 1em;
+  width: var(--socket-size);
+  height: var(--socket-size);
+  vertical-align: middle;
+  background: var(--darkPtx);
+  margin: 0em 0.4em;
+  z-index: 2;
+  box-sizing: border-box;
+  // &:hover {
+  //   border-width: 4px;
+  // }
+  &.multiple {
+    border-color: var(--darkPtxLight);
+  }
+}

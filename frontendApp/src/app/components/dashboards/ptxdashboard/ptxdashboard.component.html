@@ -1,0 +1,215 @@
+<!-- Section Catalogs -->
+<div class="dashboard-section">
+  <div class="section-header">
+    <h2>Catalogues</h2>
+  </div>
+
+  <!-- Service Offerings -->
+  <div class="section-header">
+    <p>Service offerings</p>
+  </div>
+  <div class="horizontal-scroll-container">
+    <ng-container *ngIf="isLoadingCatalog">
+      <ion-card 
+        *ngFor="let item of getSkeletonArray()" 
+        class="catalog-card skeleton-card">
+        <ion-card-header>
+          <div class="owner-header">
+            <ion-skeleton-text 
+              [animated]="true" 
+              style="width: 40px; height: 40px; border-radius: 50%;">
+            </ion-skeleton-text>
+            <ion-skeleton-text 
+              [animated]="true" 
+              style="width: 80px; margin-left: 12px;">
+            </ion-skeleton-text>
+          </div>
+        </ion-card-header>
+        <hr>
+        <ion-card-content>
+          <ion-skeleton-text 
+            [animated]="true" 
+            style="width: 70%;">
+          </ion-skeleton-text>
+        </ion-card-content>
+      </ion-card>
+    </ng-container>
+    <ion-card 
+      *ngFor="let item of serviceOfferings" 
+      class="catalog-card">
+      <ion-card-header>
+        <div class="owner-header">
+          <img 
+            *ngIf="item.owner?.logo" 
+            [src]="item.owner.logo" 
+            [alt]="item.owner.name + ' logo'" 
+            class="owner-logo">
+          <ion-card-subtitle>{{ item.owner.name }}</ion-card-subtitle>
+        </div>
+      </ion-card-header>
+      <hr>
+      <ion-card-content>
+        {{ item.name }}
+      </ion-card-content>
+    </ion-card>
+  </div>
+  
+  <!-- Software Resources -->
+  <div class="section-header">
+    <p>Software resources</p>
+  </div>
+  <div class="horizontal-scroll-container">
+    <ng-container *ngIf="isLoadingCatalog">
+      <ion-card 
+        *ngFor="let item of getSkeletonArray()" 
+        class="catalog-card skeleton-card">
+        <ion-card-header>
+          <div class="owner-header">
+            <ion-skeleton-text 
+              [animated]="true" 
+              style="width: 40px; height: 40px; border-radius: 50%;">
+            </ion-skeleton-text>
+            <ion-skeleton-text 
+              [animated]="true" 
+              style="width: 80px; margin-left: 12px;">
+            </ion-skeleton-text>
+          </div>
+        </ion-card-header>
+        <hr>
+        <ion-card-content>
+          <ion-skeleton-text 
+            [animated]="true" 
+            style="width: 70%;">
+          </ion-skeleton-text>
+        </ion-card-content>
+      </ion-card>
+    </ng-container>
+    <ion-card 
+      *ngFor="let item of softwareResources" 
+      class="catalog-card">
+      <ion-card-header>
+        <div class="owner-header">
+          <img 
+            *ngIf="item.owner?.logo" 
+            [src]="item.owner.logo" 
+            [alt]="item.owner.name + ' logo'" 
+            class="owner-logo">
+          <ion-card-subtitle>{{ item.owner.name }}</ion-card-subtitle>
+        </div>
+      </ion-card-header>
+      <hr>
+      <ion-card-content>
+        {{ item.name }}
+      </ion-card-content>
+    </ion-card>
+  </div>
+  
+  <!-- Data Resources -->
+  <div class="section-header">
+    <p>Data resources</p>
+  </div>
+  <div class="horizontal-scroll-container">
+    <ng-container *ngIf="isLoadingCatalog">
+      <ion-card 
+        *ngFor="let item of getSkeletonArray()" 
+        class="catalog-card skeleton-card">
+        <ion-card-header>
+          <div class="owner-header">
+            <ion-skeleton-text 
+              [animated]="true" 
+              style="width: 40px; height: 40px; border-radius: 50%;">
+            </ion-skeleton-text>
+            <ion-skeleton-text 
+              [animated]="true" 
+              style="width: 80px; margin-left: 12px;">
+            </ion-skeleton-text>
+          </div>
+        </ion-card-header>
+        <hr>
+        <ion-card-content>
+          <ion-skeleton-text 
+            [animated]="true" 
+            style="width: 70%;">
+          </ion-skeleton-text>
+        </ion-card-content>
+      </ion-card>
+    </ng-container>
+    <ion-card 
+      *ngFor="let item of dataResources" 
+      class="catalog-card">
+      <ion-card-header>
+        <div class="owner-header">
+          <img 
+            *ngIf="item.owner?.logo" 
+            [src]="item.owner.logo" 
+            [alt]="item.owner.name + ' logo'" 
+            class="owner-logo">
+          <ion-card-subtitle>{{ item.owner.name }}</ion-card-subtitle>
+        </div>
+      </ion-card-header>
+      <hr>
+      <ion-card-content>
+        {{ item.name }}
+      </ion-card-content>
+    </ion-card>
+  </div>
+
+  <hr class="section-divider">
+</div>
+
+<!-- Section Contracts -->
+<div class="dashboard-section">
+  <div class="section-header">
+    <h2>Contracts</h2>
+  </div>
+  
+  <div class="contracts-container">
+    <ion-card 
+      *ngFor="let contract of contractsUseCase" 
+      class="contract-card">
+      <div class="contract-content">
+        <img 
+          [src]="contract.logo" 
+          [alt]="contract.name + ' logo'" 
+          class="contract-logo">
+    
+        <div class="contract-details">
+          <div class="contract-header">
+            <h2>{{ contract.name }}</h2>
+            <p class="status-indicator"
+               [ngClass]="{
+                 'signed': contract.status === 'signed',
+                 'pending': contract.status === 'pending'
+               }">
+              <span 
+                class="status-dot" 
+                [ngClass]="{
+                  'signed': contract.status === 'signed',
+                  'pending': contract.status === 'pending'
+                }">
+              </span>
+              {{ contract.status | titlecase }}
+            </p>
+          </div>
+          
+          <div class="provider-section">
+            <div 
+              *ngFor="let provider of contract.dataProviders" 
+              class="provider-item">
+              <h4>{{ provider.name }}</h4>
+              <div class="purposes-container">
+                <ion-button 
+                  *ngFor="let purpose of contract.purposes"
+                  size="small"
+                  fill="outline"
+                  (click)="triggerDataExchange(contract, provider, purpose)">
+                  Trigger exchange to {{ purpose.name }}
+                </ion-button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ion-card>
+  </div>
+</div>

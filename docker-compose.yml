@@ -1,0 +1,105 @@
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    restart: always
+    ports:
+      - "27017:27017"
+    networks:
+      - daav
+    volumes:
+      - mongodb-data:/data/db
+      - mongodb-config:/data/configdb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: daav_datasets
+    command: mongod --auth
+
+  # MongoDB Administration Interface (optional)
+  mongo-express:
+    image: mongo-express:1.0.2
+    restart: always
+    ports:
+      - "8083:8081"
+    networks:
+      - daav
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: admin123
+      ME_CONFIG_MONGODB_URL: mongodb://admin:admin123@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+    depends_on:
+      - mongodb
+    profiles:
+      - admin
+
+  # FastAPI Backend with Uvicorn
+  backend:
+    build: 
+      context: ./backendApi
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8081:8000"
+    networks:
+      - daav
+    environment:
+      # MongoDB Configuration
+      MONGODB_URL: mongodb://admin:admin123@mongodb:27017/daav_datasets?authSource=admin
+      DATABASE_NAME: daav_datasets
+      WORKERS: 4
+      
+      # Server Configuration
+      HOST: 0.0.0.0
+      PORT: 8000
+      DEBUG: "false"
+      ENVIRONMENT: production
+      
+      # CORS for frontend
+      CORS_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080"
+      
+      MAX_FILE_SIZE: 100MB
+      UPLOAD_DIR: /app/uploads
+      
+      # Logging
+      LOG_LEVEL: INFO
+      LOG_FILE: /app/logs/app.log
+      
+    volumes:
+      - backend-uploads:/app/uploads
+      - backend-logs:/app/logs
+    depends_on:
+      - mongodb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Angular Frontend
+  frontend:
+    build:
+      context: ./frontendApp
+      dockerfile: Dockerfile
+      target: prod
+    restart: always
+    ports:
+      - "8080:80"
+    networks:
+      - daav
+    depends_on:
+      - backend
+    environment:
+      API_URL: http://backend:8000
+
+networks:
+  daav:
+    driver: bridge
+
+volumes:
+  mongodb-data:
+  mongodb-config:
+  backend-uploads:
+  backend-logs:

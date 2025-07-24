@@ -1,0 +1,3 @@
+@use '../nodes-main.scss';
+
+@include nodes-main.nodeColor(var(--inputNodeLight), var(--inputNode));

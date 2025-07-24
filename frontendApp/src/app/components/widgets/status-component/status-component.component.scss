@@ -1,0 +1,21 @@
+.circle {
+  height: var(--socket-size);
+  width: var(--socket-size);
+  background-color: #000000;
+  border-radius: 50%;
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  &.red{
+    background-color: #ff0000;
+  }
+  &.yellow{
+    background-color: #eeff00;
+  }
+  &.orange{
+    background-color: #dd7819;
+  }
+  &.green{
+    background-color: #3cff00;
+  }
+}

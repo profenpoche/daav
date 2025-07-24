@@ -1,0 +1,4 @@
+<mat-checkbox (pointerdown)="$event.stopPropagation()" (dblclick)="$event.stopPropagation()" [checked]="data.value"
+  (change)="onInputChange($event)">
+  {{data.label}}
+</mat-checkbox>

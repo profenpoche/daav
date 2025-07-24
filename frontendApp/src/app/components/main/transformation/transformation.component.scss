@@ -1,0 +1,21 @@
+
+.datasets-infos-container {
+  flex-direction: column !important;
+  padding: unset;
+  .dataset-info-title{
+    margin-left: 7px;
+  }
+}
+
+
+.iconPaste {
+    left: -25px;
+    top: 35px;
+    position: absolute;
+    margin: unset;
+    cursor: pointer;
+    --background : white;
+    & ion-icon {
+        margin: unset;
+    }
+}

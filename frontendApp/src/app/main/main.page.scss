@@ -1,0 +1,198 @@
+ion-split-pane {
+    --side-width: 350px;
+    --side-max-width: 350px;
+    --border: 0px solid var(--grayDark);
+}
+
+// Site title ---------------------------------------------------------
+ion-header {
+    box-shadow: none !important;
+
+    #theme-menu {
+        display: none;
+        position: absolute;
+        top: 63px;
+        left: 0;
+        background-color: var(--grayLight);
+        box-shadow: rgba(0, 0, 0, 0.05) 0px 4px 4px 0px;
+        width: 350px;
+        border: 1px solid black;
+        width: 100%;
+        padding: 1em;
+        z-index: 99;
+
+        &.is-open {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        #theme-btns {
+            margin-bottom: 1em;
+        }
+
+        #theme-btns,
+        #font-btns {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+
+            ion-button {
+                width: 100%;
+                box-shadow: rgba(0, 0, 0, 0.05) 0px 4px 4px 0px;
+            }
+        }
+    }
+}
+
+// Left column ---------------------------------------------------------
+ion-menu {
+    min-width: 350px;
+    width: 20vw;
+    padding: 0;
+
+    ion-title {
+        color: var(--darkPtx) !important;
+        font-weight: 900 !important;
+        font-size: 1.8em;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        padding-left: 30px;
+        background-color: transparent;
+        font-family: 'poppins' !important;
+    }
+
+    ion-content {
+        border-right: 1px solid var(--darkPtx);
+    }
+}
+
+// Left column title ---------------------------------------------------------
+#datasets {
+    --border-color: transparent;
+    --background: var(--darkPtx);
+    position: sticky;
+    z-index: 100 !important;
+    top: 0%;
+    left: 0%;
+}
+
+#datasets::part(native) {
+    color: var(--white);
+    padding: 4px 5px 4px 30px;
+    border: none !important;
+    font-weight: 900;
+}
+
+#add-connexion,
+#add-workflow {
+    width: 100;
+    margin: 0px 0px;
+    position: sticky;
+    z-index: 100 !important;
+    bottom: 0%;
+    left: 0%;
+}
+
+// Add connexion ---------------------------------------------------------
+#add-connexion::part(native),
+#add-workflow::part(native) {
+    padding: 20px;
+    background-color: var(--bluePtxLight);
+    transition: var(--custom-transition);
+    color: var(--darkPtx);
+    font-weight: 800;
+    border-top: 1px solid var(--darkPtx);
+    border-bottom: 1px solid var(--darkPtx);
+    box-shadow: none !important;
+
+    &:hover {
+        background-color: var(--bluePtx);
+        color: var(--white);
+    }
+}
+
+// Main tab ---------------------------------------------------------
+.main-tab-group {
+    background-color: var(--white);
+    overflow: hidden !important;
+    height: fit-content !important;
+    max-height: 100% !important;
+    --mdc-tab-indicator-active-indicator-color: var(--darkPtx) !important;
+    --mdc-tab-indicator-indicator-color: var(--darkPtx) !important;
+    --mat-tab-header-active-label-text-color: var(--darkPtx);
+    --mat-tab-header-active-ripple-color: var(--darkPtx);
+    --mat-tab-header-inactive-ripple-color: var(--darkPtx);
+    --mat-tab-header-active-focus-label-text-color: var(--darkPtx);
+    --mat-tab-header-active-hover-label-text-color: var(--darkPtx);
+    --mat-tab-header-active-focus-indicator-color: var(--darkPtx);
+    --mat-tab-header-active-hover-indicator-color: var(--darkPtx);
+
+
+    .mat-ripple,
+    .mdc-tab__ripple {
+        display: none !important;
+    }
+
+    .mat-mdc-tab-labels {
+        justify-content: flex-end;
+        border-bottom: 1px solid var(--darkPtx);
+        padding: 14.5px 0px 0px 0px;
+
+        .mdc-tab {
+            margin-left: 70px;
+
+            &:last-of-type {
+                margin-right: 40px;
+            }
+        }
+    }
+
+    .mat-mdc-tab {
+        flex-grow: unset !important;
+        background-color: var(--white) !important;
+        transition: var(--custom-transition);
+        width: 150px;
+
+        &:hover {
+            font-weight: 800;
+        }
+
+        span {
+            color: var(--black) !important;
+        }
+    }
+
+    .mat-mdc-tab.mdc-tab--active {
+        span {
+            color: var(--darkPtx) !important;
+        }
+
+        font-weight: 800;
+    }
+}
+
+// Render tab ---------------------------------------------------------
+.render-tab-group {
+    .mat-mdc-tab-labels {
+        padding: 8px 0px 0px 0px !important;
+    }
+
+    .mat-mdc-tab {
+        width: fit-content;
+    }
+
+}
+
+#render-container {
+    width: 100%;
+    height: 100%;
+    overflow: hidden !important;
+
+    #app-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden !important;
+    }
+}

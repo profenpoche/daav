@@ -1,0 +1,39 @@
+<div slot="content">
+  <ion-list>
+    @for(workflow of workflowService.workflows();track workflow.id){
+    <ion-item class="dataset-container">
+      <ion-button expand="full" fill="clear" (click)="loadSelectedWorkflow(workflow);changeView();"
+        class="dataset-name">
+        <div class="datasets-infos-container">
+          <div class="dataset-info-container"><span class="dataset-info-title">Name: </span><span
+              class="dataset-info">{{workflow.name}}</span></div>
+          <div class="dataset-info-container">
+            <ion-button  class="iconPaste" size="small" (click)="copyToClipboard(workflow.id,$event)"><ion-icon slot="icon-only" name="copy-outline"
+              ></ion-icon></ion-button>
+            <span class="dataset-info-title">Id: </span>
+            <span class="dataset-info">{{workflow.id}}</span>
+          </div>
+        </div>
+      </ion-button>
+      <div class="iconsContainer">
+        @if (workflowsStatus.get(workflow.id) === "running") {
+        <ion-spinner name="circles"></ion-spinner>
+        }@else if (workflowsStatus.get(workflow.id) === "error") {
+        <ion-icon name="alert-circle-outline" (click)="executeWorkflow(workflow)"></ion-icon>
+        }
+        @else {
+        <ion-icon name="play-outline" (click)="executeWorkflow(workflow)"></ion-icon>
+        }
+
+
+      </div>
+      <div class="iconsContainer">
+        <ion-icon name="construct-outline" mat-raised-button (click)="updateRules(workflow.id)"></ion-icon>
+      </div>
+      <div class="iconsContainer">
+        <ion-icon name="trash-outline" (click)="deleteWorkflow(workflow.id)"></ion-icon>
+      </div>
+    </ion-item>
+    }
+  </ion-list>
+</div>
