@@ -1,4 +1,4 @@
-import aiohttp
+import httpx
 import requests
 from typing import Any, Dict, Optional
 from fastapi import HTTPException
@@ -144,25 +144,25 @@ class PdcService(metaclass=SingletonMeta):
         return False
     
 
-    async def fetch_service_offering_async(self, session: aiohttp.ClientSession, url: str):
+    async def fetch_service_offering_async(self, client: httpx.AsyncClient, url: str):
         """Fetch service offering asynchronously"""
-        async with session.get(url) as response:
-            if response.status == 200:
-                data = await response.json()
-                return PdcServiceOffering.model_validate(data)
+        response = await client.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            return PdcServiceOffering.model_validate(data)
         return None
 
-    async def fetch_ecosystem_async(self, session: aiohttp.ClientSession, url: str):
+    async def fetch_ecosystem_async(self, client: httpx.AsyncClient, url: str):
         """Fetch ecosystem asynchronously"""
-        async with session.get(url) as response:
-            if response.status == 200:
-                data = await response.json()
-                return PdcEcosystem.model_validate(data)
+        response = await client.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            return PdcEcosystem.model_validate(data)
         return None
 
-    async def fetch_participant_async(self, session: aiohttp.ClientSession, url: str):
+    async def fetch_participant_async(self, client: httpx.AsyncClient, url: str):
         """Fetch participant asynchronously"""
-        async with session.get(url) as response:
-            if response.status == 200:
-                return await response.json()
+        response = await client.get(url)
+        if response.status_code == 200:
+            return response.json()
         return None

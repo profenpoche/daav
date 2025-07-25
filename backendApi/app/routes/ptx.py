@@ -12,7 +12,8 @@ import requests
 import logging
 import httpx
 import asyncio
-import aiohttp
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from app.models.interface.pdc_chain_interface import PdcChainHeaders, PdcChainRequest, PdcChainResponse
 from app.models.interface.pdc_interface import PdcContract, PdcEcosystem, PdcParticipant, PdcServiceOffering, PdcContractBilateral, PdcDataResource
@@ -21,7 +22,7 @@ from app.models.interface.workflow_interface import IProject
 from app.routes.workflows import import_and_execute_workflow
 from app.services.dataset_service import DatasetService
 from app.services.pdc_service import PdcService
-from typing import Annotated
+from typing import Annotated, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -42,43 +43,44 @@ _config_timestamp = {}
 @router.get("/{id}")
 async def get_ptx_data(id: str):
     connection = await dataset_service.get_dataset(id)
-
     config = get_private_configuration(connection)
     catalog_uri = config.get("catalogUri")
     pdc_data = pdc_get_request(connection, "/")
-    async def fetch_catalog_item(session, content):
-        async with session.get(content["@id"]) as response:
-            res = await response.json()
-            participant_id = None
-            owner_name = "Unknown"
-            owner_logo = None
 
-            if content["@type"] in ["ptx:serviceofferings", "ptx:softwareresources"]:
-                participant_id = res.get("providedBy")
-            elif content["@type"] == "ptx:dataresources":
-                participant_id = res.get("producedBy")
+    async def fetch_catalog_item(client: httpx.AsyncClient, content: dict):
+        response = await client.get(content["@id"])
+        res = response.json()
+        participant_id = None
+        owner_name = "Unknown"
+        owner_logo = None
 
-            if participant_id and catalog_uri:
-                try:
-                    async with session.get(f"{catalog_uri}participants/{participant_id}") as participant_response:
-                        participant = await participant_response.json()
-                        owner_name = participant.get("legalName")
-                        owner_logo = participant.get("logo")
-                except:
-                    pass
+        if content["@type"] in ["ptx:serviceofferings", "ptx:softwareresources"]:
+            participant_id = res.get("providedBy")
+        elif content["@type"] == "ptx:dataresources":
+            participant_id = res.get("producedBy")
 
-            return {
-                "type": content["@type"],
-                "name": res["name"],
-                "owner": {
-                    "name": owner_name,
-                    "logo": owner_logo
-                }
+        if participant_id and catalog_uri:
+            try:
+                participant_response = await client.get(f"{catalog_uri}participants/{participant_id}")
+                participant = participant_response.json()
+                owner_name = participant.get("legalName")
+                owner_logo = participant.get("logo")
+            except Exception:
+                pass
+
+        return {
+            "type": content["@type"],
+            "name": res["name"],
+            "owner": {
+                "name": owner_name,
+                "logo": owner_logo
             }
+        }
+
     catalog = []
     if "content" in pdc_data and "ptx:catalog" in pdc_data["content"]:
-        async with aiohttp.ClientSession() as session:
-            tasks = [fetch_catalog_item(session, content) 
+        async with httpx.AsyncClient() as client:
+            tasks = [fetch_catalog_item(client, content) 
                     for content in pdc_data["content"]["ptx:catalog"]]
             catalog = await asyncio.gather(*tasks)
 
@@ -250,45 +252,36 @@ async def read_input(request: Request, response: Response, headers: Annotated[Pd
     return {"data": payload, "path": "my pdc"}
 
 @router.get("/participants_id/{connection_id}")
-async def get_participants_id_from_connection(connection_id: str):
+async def get_participants_id_from_connection(connection_id: str) -> List[str]:
     """
     Extract unique participants from a connection's catalog
     """
     connection = await dataset_service.get_dataset(connection_id)
-    
-    # Get PDC data
     pdc_data = pdc_get_request(connection, "/")
-    
     participants_id = set()
-    
+
     if "content" in pdc_data and "ptx:catalog" in pdc_data["content"]:
-        async with aiohttp.ClientSession() as session:
-            # Create a list of tasks to fetch participant IDs
-            tasks = []
-            for content in pdc_data["content"]["ptx:catalog"]:
-                tasks.append(fetch_participant_id(session, content))
-            
-            # Execute all tasks concurrently
+        async with httpx.AsyncClient() as client:
+            tasks = [fetch_participant_id(client, content) 
+                    for content in pdc_data["content"]["ptx:catalog"]]
             results = await asyncio.gather(*tasks)
-            
-            # add unique participant IDs to the set
             participants_id.update(pid for pid in results if pid)
-            
+
         if participants_id:
             return list(participants_id)
 
-async def fetch_participant_id(session: aiohttp.ClientSession, content: dict) -> str:
+async def fetch_participant_id(client: httpx.AsyncClient, content: dict) -> Optional[str]:
     """Fetch participant ID from content URL"""
     try:
-        async with session.get(content["@id"]) as response:
-            if response.status == 200:
-                res = await response.json()
+        response = await client.get(content["@id"])
+        if response.status_code == 200:
+            res = response.json()
+            
+            if content["@type"] in ["ptx:serviceofferings", "ptx:softwareresources"]:
+                return res.get("providedBy")
+            elif content["@type"] == "ptx:dataresources":
+                return res.get("producedBy")
                 
-                if content["@type"] in ["ptx:serviceofferings", "ptx:softwareresources"]:
-                    return res.get("providedBy")
-                elif content["@type"] == "ptx:dataresources":
-                    return res.get("producedBy")
-                    
     except Exception as e:
         print(f"Error fetching {content['@id']}: {e}")
     return None
@@ -303,33 +296,36 @@ async def get_use_case_contract(connection_id: str, hasSigned:Optional[bool] = N
     participants_id = await get_participants_id_from_connection(connection_id)
 
     all_use_case_contracts = []
-    for participant_id in participants_id:
-        participant_url = f"{catalog_uri}catalog/participants/{participant_id}"
-        encoded_url = b64_encode(participant_url)
-        contract_url = f"{contract_uri}/contracts/for/{encoded_url}"
-        
-        params = {}
-        if hasSigned is not None:
-            params["hasSigned"] = "true" if hasSigned else "false"
+    
+    # create a new async client for making requests
+    async with httpx.AsyncClient() as client:
+        for participant_id in participants_id:
+            participant_url = f"{catalog_uri}catalog/participants/{participant_id}"
+            encoded_url = b64_encode(participant_url)
+            contract_url = f"{contract_uri}contracts/for/{encoded_url}"
+            
+            params = {}
+            if hasSigned is not None:
+                params["hasSigned"] = "true" if hasSigned else "false"
 
-        response = requests.get(contract_url, params = params)
+            # use the async client to fetch contracts
+            response = await client.get(contract_url, params=params)
 
-        if response.status_code == 200:
-            contracts_data = response.json()
-            for contract in contracts_data.get("contracts"):
-                try:
-                    contract = PdcContract.model_validate(contract)
-                    
-                    async with aiohttp.ClientSession() as session:
+            if response.status_code == 200:
+                contracts_data = response.json()
+                for contract in contracts_data.get("contracts"):
+                    try:
+                        contract = PdcContract.model_validate(contract)
+                        
                         # Fetch ecosystem
-                        ecosystem = await pdc_service.fetch_ecosystem_async(session, contract.ecosystem) if contract.ecosystem else None
+                        ecosystem = await pdc_service.fetch_ecosystem_async(client, contract.ecosystem) if contract.ecosystem else None
                         
                         if participant_id == ecosystem.orchestrator:
                             contract.name = ecosystem.name
                             
                             # Fetch orchestrator
                             if contract.orchestrator:
-                                orchestrator = await pdc_service.fetch_participant_async(session, contract.orchestrator)
+                                orchestrator = await pdc_service.fetch_participant_async(client, contract.orchestrator)
                                 contract.logo = orchestrator.get("logo", "") if orchestrator else ""
                             
                             all_use_case_contracts.append(contract)
@@ -353,7 +349,7 @@ async def get_use_case_contract(connection_id: str, hasSigned:Optional[bool] = N
                                     has_data_provider_role):
                                     for service in participant.offerings:
                                         url = f"{catalog_uri}catalog/serviceofferings/{service.serviceOffering}"
-                                        data_provider_tasks.append(pdc_service.fetch_service_offering_async(session, url))
+                                        data_provider_tasks.append(pdc_service.fetch_service_offering_async(client, url))
 
                             data_provider_services = await asyncio.gather(*data_provider_tasks)
                             contract.dataProviders.extend([
@@ -367,7 +363,7 @@ async def get_use_case_contract(connection_id: str, hasSigned:Optional[bool] = N
                                 if participant_id == participant.participant:
                                     for service in participant.offerings:
                                         url = f"{catalog_uri}catalog/serviceofferings/{service.serviceOffering}"
-                                        purpose_tasks.append(pdc_service.fetch_service_offering_async(session, url))
+                                        purpose_tasks.append(pdc_service.fetch_service_offering_async(client, url))
 
                             purpose_services = await asyncio.gather(*purpose_tasks)
                             contract.purposes.extend([
@@ -375,11 +371,11 @@ async def get_use_case_contract(connection_id: str, hasSigned:Optional[bool] = N
                                 if service and service.softwareResources and len(service.softwareResources) > 0
                             ])
 
-                except Exception as e:
-                    logger.error(f"Error processing contract data: {str(e)}")
-                    traceback.print_exc()
-        else:
-            print("Failed to get bilateral contracts for participants")
+                    except Exception as e:
+                        logger.error(f"Error processing contract data: {str(e)}")
+                        traceback.print_exc()
+            else:
+                print("Failed to get bilateral contracts for participants")
 
     return all_use_case_contracts
 
