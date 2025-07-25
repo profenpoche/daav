@@ -68,7 +68,7 @@
                 }
               ],
               "outputHashing": "all",
-              "optimization": true,
+              "optimization": false,
               "budgets": [
                 {
                   "type": "initial",
