@@ -1,0 +1,44 @@
+.text-display-widget {
+    padding: 8px;
+    margin: 4px 0;
+    
+    .text-display-label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .text-display-content {
+      display: flex;
+      align-items: center;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 4px;
+      padding: 8px 12px;
+      word-break: break-all;
+      
+      
+      .text-value {
+        flex: 1;
+        font-family: 'Courier New', monospace;
+        font-size: 11px;
+        color: #495057;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .copy-button {
+        margin-left: 8px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 2px;
+        
+        &:hover {
+          background: #dee2e6;
+        }
+      }
+    }
+  }

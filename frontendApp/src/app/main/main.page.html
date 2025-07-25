@@ -1,0 +1,96 @@
+<ion-content [fullscreen]="true">
+  <ion-split-pane when="xs" contentId="main">
+    <ion-menu contentId="main">
+      
+      <ion-header>
+        <ion-toolbar>
+          <ion-title id="menu-title">DAAV</ion-title>
+          <ion-buttons slot="end">
+              <ion-button aria-label="menu de thèmes" (click)="toggleMenu()"><ion-icon [name]="menuIcon"></ion-icon></ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+        <div id="theme-menu" [class.is-open]="isMenuOpen">
+          <span>Thèmes</span>
+          <div id="theme-btns">
+            @for (theme of themes; track theme) {
+              <ion-button (click)="applyTheme(theme.class)">{{theme.name}}</ion-button>
+            }
+          </div>
+          <span>Polices</span>
+          <div id="font-btns">
+          @for (font of fonts; track font) {
+            <ion-button (click)="applyFont(font)">{{font.charAt(0).toUpperCase() + font.slice(1)}}</ion-button>
+          }
+          </div>
+        </div>
+      </ion-header>
+
+      <ion-content>
+        <ion-item id="datasets">
+          @if(matTabIndex !== 2){
+            <ion-label>Datasets</ion-label>
+          }
+          @else if(matTabIndex === 2){
+            <ion-label>Workflows</ion-label>
+          }
+        </ion-item>
+
+        <app-datasets-modal #datasetModal></app-datasets-modal>
+        <app-transformation-modal #transformationModal></app-transformation-modal>
+
+        <!-- <ion-text>
+          <ion-accordion-group [multiple]="true" [value]="['first']">
+            <ion-accordion value="first">
+              <div slot="content"> -->
+                @if(matTabIndex !== 2){
+                  <app-datasets [width]="width.left" (selectedDataset)="getDataset($event)"></app-datasets>
+                }
+                @else if(matTabIndex === 2){
+                  <app-transformation (createWorkflow)="createWorkflow()" (transformationView)="changeTransformationView($event)" (loadWorkflow)="loadWorkflow($event)"></app-transformation>
+                }
+              <!-- </div>
+            </ion-accordion>
+          </ion-accordion-group>
+        </ion-text> -->
+
+        @if(matTabIndex !== 2){
+          <ion-button id="add-connexion" expand="full" (click)="openDatasetsModal()" i18n>Add dataset</ion-button>
+        }
+        @else if(matTabIndex === 2){
+          <ion-button id="add-workflow" expand="full" (click)="changeTransformationView('rete');createWorkflow()" i18n>New workflow</ion-button>
+        }
+      </ion-content>
+
+    </ion-menu>
+
+    <div class="ion-page" id="main">
+      <ion-content>
+        <mat-tab-group class="main-tab-group" [(selectedIndex)]="matTabIndex" animationDuration="0ms">
+
+          <mat-tab class="main-tab" label="Datasets" i18n>
+             <div class="datasetContainer">
+              <app-datasets [width]="width.right" (selectedDataset)="getDataset($event)"></app-datasets>
+             </div>
+          </mat-tab>
+
+          <mat-tab class="main-tab" label="Render" [disabled]="!dataset" i18n>
+            <div id="render-container" >
+              <app-render *ngIf="dataset" [dataset]="dataset" (datasetsLoaded)="loadDataset()" id="app-container"></app-render>
+            </div>
+          </mat-tab>
+
+          <mat-tab class="main-tab" label="Transformation" i18n>
+            <ng-template matTabContent>
+              @if (transformationView === 'list') {
+                <app-transformation (transformationView)="changeTransformationView($event)" (createWorkflow)="createWorkflow()" (loadWorkflow)="loadWorkflow($event)"></app-transformation>
+              }
+              @else if (transformationView === 'rete') {
+                <app-workflow [projectId]="loadProjectId"/>
+              }
+            </ng-template>
+          </mat-tab>
+        </mat-tab-group>
+      </ion-content>
+    </div>
+  </ion-split-pane>
+</ion-content>

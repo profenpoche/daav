@@ -1,0 +1,27 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "backendApi"
+		},
+		{
+			"path": "frontendApp"
+		}
+	],
+	"settings": {},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [],
+		"compounds": [
+			{
+				"name": "Launch Application",
+				"configurations": [
+					"Launch Backend",
+					"Launch Frontend"
+				]
+			}
+		]
+	}
+}

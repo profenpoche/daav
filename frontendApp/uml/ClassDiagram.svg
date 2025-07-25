@@ -1,0 +1,2709 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   version="1.1"
+   width="3017.0"
+   height="1035.0"
+   viewbox="0 0 3017 1035"
+   id="svg273"
+   sodipodi:docname="ClassDiagram.svg"
+   inkscape:version="1.3 (0e150ed6c4, 2023-07-21)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs273" />
+  <sodipodi:namedview
+     id="namedview273"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.47928406"
+     inkscape:cx="1508.5"
+     inkscape:cy="518.48167"
+     inkscape:window-width="1920"
+     inkscape:window-height="1137"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg273" />
+  <desc
+     id="desc1">#.interface: fill=lightblue&#10;#.enumeration: fill=lightgreen&#10;#.type: fill=lightgray&#10;[Connection&lt;N&gt;||]&#10;[WorkflowEditor|+project: Project;+nodeEditor: WorkflowNodeEditor&lt;Schemes&gt;;+connection: ConnectionPlugin&lt;Schemes, AreaExtra&gt;;+id: string;+name: string;+area: AreaPlugin&lt;Schemes, AreaExtra&gt;;+render: AngularPlugin&lt;Schemes, AreaExtra&gt;;+dock: DockPlugin&lt;Schemes&gt;;+injector: Injector;+arrange: AutoArrangePlugin&lt;Schemes, never&gt;|-connectionRule(): void;-customRender(): void;+importProject(): Promise&lt;void&gt;;+exportProject(): Project;+saveProject(): void;-buildDockContent(): void;-serializePort(): NodePort;-serializeControl(): NodeControl;+getNodes(): Promise&lt;Nodes\[\]&gt;;-socketFactory(): Sockets \| Socket]&#10;[Connection&lt;Source,Target&gt;]&lt;:-[Connection&lt;N&gt;]&#10;[WorkflowNodeEditor&lt;Scheme&gt;||]&#10;[NodeEditor&lt;Scheme&gt;]&lt;:-[WorkflowNodeEditor&lt;Scheme&gt;]&#10;[&lt;enumeration&gt;DatasetType|Mongo;FilePath;MySQL;HuggingFace]&#10;[&lt;enumeration&gt;StatusNode|Error;Incomplete;Complete;Validated]&#10;[NodeBlock|+status: StatusNode;+statusMessage: string;+errorStacktrace: string\[\];+rebuildLocally: boolean;-statusControl: StatusControl;+width: number;+height: number;+area: AreaPlugin&lt;Schemes, AreaExtra&gt;|+data(): { status: StatusNode; statusMessage: string; errorStacktrace: string\[\]; };+getNodeComponent(): typeof NodeComponent;+updateStatus(): void;+abstract getRevision(): string]&#10;[Node&lt;Inputs,Outputs,Controls&gt;]&lt;:-[NodeBlock]&#10;[BaseSocket||+getSocketComponent(): any;+getConnectionComponent(): typeof ConnectionComponent]&#10;[FlatObjectSocket||+isCompatibleWith(): boolean;+getSocketComponent(): any]&#10;[DeepObjectSocket||+isCompatibleWith(): boolean]&#10;[LrsObjectSocket||+isCompatibleWith(): boolean]&#10;[SimpleFieldSocket||+isCompatibleWith(): boolean]&#10;[Socket]&lt;:-[BaseSocket]&#10;[BaseSocket]&lt;:-[FlatObjectSocket]&#10;[BaseSocket]&lt;:-[DeepObjectSocket]&#10;[BaseSocket]&lt;:-[LrsObjectSocket]&#10;[BaseSocket]&lt;:-[SimpleFieldSocket]&#10;[DataFileBlock||+execute(): void]&#10;[InputDataBlock]&lt;:-[DataFileBlock]&#10;[DataHuggingBlock||+execute(): void]&#10;[InputDataBlock]&lt;:-[DataHuggingBlock]&#10;[DataLrsBlock||+execute(): void]&#10;[InputDataBlock]&lt;:-[DataLrsBlock]&#10;[DataMongoBlock||+execute(): void]&#10;[InputDataBlock]&lt;:-[DataMongoBlock]&#10;[DataMysqlBlock||+execute(): void]&#10;[InputDataBlock]&lt;:-[DataMysqlBlock]&#10;[InputDataBlock||+getRevision(): string;+execute(): void;+testConnection(): void]&#10;[NodeBlock]&lt;:-[InputDataBlock]&#10;[ExampleInput|+width: number;+height: number|+getRevision(): string]&#10;[InputDataBlock]&lt;:-[ExampleInput]&#10;[OutputDataBlock||+getRevision(): string;+execute(): void]&#10;[NodeBlock]&lt;:-[OutputDataBlock]&#10;[ExampleOutput|+width: number;+height: number|+getRevision(): string]&#10;[OutputDataBlock]&lt;:-[ExampleOutput]&#10;[CustomTransformBlock||]&#10;[TransformBlock]&lt;:-[CustomTransformBlock]&#10;[TransformBlock||+getRevision(): string;+execute(): void]&#10;[NodeBlock]&lt;:-[TransformBlock]&#10;[ExampleTransform|+width: number;+height: number|+getRevision(): string]&#10;[TransformBlock]&lt;:-[ExampleTransform]</desc>
+  <g
+     stroke-width="1.0"
+     text-align="left"
+     font="12pt Helvetica, Arial, sans-serif"
+     font-size="12pt"
+     font-family="Helvetica"
+     font-weight="normal"
+     font-style="normal"
+     id="g273">
+    <g
+       font-family="Helvetica"
+       font-size="12pt"
+       font-weight="bold"
+       font-style="normal"
+       stroke-width="3.0"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke="#33322E"
+       id="g272">
+      <g
+         stroke="transparent"
+         fill="transparent"
+         id="g1">
+        <rect
+           x="0.0"
+           y="0.0"
+           height="1035.0"
+           width="3017.0"
+           stroke="none"
+           id="rect1"
+           style="fill:#ffffff" />
+      </g>
+      <g
+         transform="translate(8, 8)"
+         fill="#33322E"
+         id="g271">
+        <g
+           transform="translate(20, 20)"
+           fill="#eee8d5"
+           font-family="Helvetica"
+           font-size="12pt"
+           font-weight="normal"
+           font-style="normal"
+           id="g270">
+          <path
+             d="M602.0 210.3 L602 383 L602 523.5 L602.0 523.5 "
+             fill="none"
+             id="path1" />
+          <path
+             d="M607.3 210.3 L602.0 210.3 L596.7 210.3 L602.0 197.0 Z"
+             id="path2" />
+          <path
+             d="M855.0 210.3 L855 383 L855 523.5 L855.0 523.5 "
+             fill="none"
+             id="path3" />
+          <path
+             d="M860.3 210.3 L855.0 210.3 L849.7 210.3 L855.0 197.0 Z"
+             id="path4" />
+          <path
+             d="M2379.3 210.3 L2379.25 383 L2379.25 403 L2379.3 403.0 "
+             fill="none"
+             id="path5" />
+          <path
+             d="M2384.6 210.3 L2379.3 210.3 L2373.9 210.3 L2379.3 197.0 Z"
+             id="path6" />
+          <path
+             d="M1333.0 210.3 L1333 383 L1333 504.5 L1333.0 504.5 "
+             fill="none"
+             id="path7" />
+          <path
+             d="M1338.3 210.3 L1333.0 210.3 L1327.7 210.3 L1333.0 197.0 Z"
+             id="path8" />
+          <path
+             d="M1170.4 593.1 L755 711 L755 738.5 L755.0 738.5 "
+             fill="none"
+             id="path9" />
+          <path
+             d="M1171.8 598.3 L1170.4 593.1 L1168.9 588.0 L1183.2 589.5 Z"
+             id="path10" />
+          <path
+             d="M1246.5 596.1 L1044 711 L1044 746 L1044.0 746.0 "
+             fill="none"
+             id="path11" />
+          <path
+             d="M1249.1 600.7 L1246.5 596.1 L1243.9 591.4 L1258.1 589.5 Z"
+             id="path12" />
+          <path
+             d="M1333.0 602.8 L1333 711 L1333 746 L1333.0 746.0 "
+             fill="none"
+             id="path13" />
+          <path
+             d="M1338.3 602.8 L1333.0 602.8 L1327.7 602.8 L1333.0 589.5 Z"
+             id="path14" />
+          <path
+             d="M1419.5 596.1 L1622 711 L1622 746 L1622.0 746.0 "
+             fill="none"
+             id="path15" />
+          <path
+             d="M1422.1 591.4 L1419.5 596.1 L1416.9 600.7 L1407.9 589.5 Z"
+             id="path16" />
+          <path
+             d="M1773.2 792.8 L1215 851 L1215 890 L1215.0 890.0 "
+             fill="none"
+             id="path17" />
+          <path
+             d="M1773.8 798.1 L1773.2 792.8 L1772.7 787.5 L1786.5 791.4 Z"
+             id="path18" />
+          <path
+             d="M1773.3 797.6 L1408 851 L1408 890 L1408.0 890.0 "
+             fill="none"
+             id="path19" />
+          <path
+             d="M1774.1 802.8 L1773.3 797.6 L1772.5 792.3 L1786.5 795.6 Z"
+             id="path20" />
+          <path
+             d="M1773.6 808.7 L1601 851 L1601 890 L1601.0 890.0 "
+             fill="none"
+             id="path21" />
+          <path
+             d="M1774.8 813.9 L1773.6 808.7 L1772.3 803.5 L1786.5 805.5 Z"
+             id="path22" />
+          <path
+             d="M1805.3 838.7 L1788 851 L1788 890 L1788.0 890.0 "
+             fill="none"
+             id="path23" />
+          <path
+             d="M1808.4 843.1 L1805.3 838.7 L1802.2 834.4 L1816.1 831.0 Z"
+             id="path24" />
+          <path
+             d="M1960.2 839.3 L1975 851 L1975 890 L1975.0 890.0 "
+             fill="none"
+             id="path25" />
+          <path
+             d="M1963.5 835.1 L1960.2 839.3 L1956.9 843.5 L1949.7 831.0 Z"
+             id="path26" />
+          <path
+             d="M2170.1 616.6 L1886.5 711 L1886.5 731 L1886.5 731.0 "
+             fill="none"
+             id="path27" />
+          <path
+             d="M2171.8 621.7 L2170.1 616.6 L2168.4 611.6 L2182.8 612.4 Z"
+             id="path28" />
+          <path
+             d="M1999.5 808.0 L2179.5 851 L2179.5 871 L2179.5 871.0 "
+             fill="none"
+             id="path29" />
+          <path
+             d="M2000.7 802.8 L1999.5 808.0 L1998.2 813.2 L1986.5 804.9 Z"
+             id="path30" />
+          <path
+             d="M2403.4 704.2 L2404.5 711 L2404.5 738.5 L2404.5 738.5 "
+             fill="none"
+             id="path31" />
+          <path
+             d="M2408.7 703.4 L2403.4 704.2 L2398.2 705.0 L2401.4 691.0 Z"
+             id="path32" />
+          <path
+             d="M2404.5 836.8 L2404.5 851 L2404.5 871 L2404.5 871.0 "
+             fill="none"
+             id="path33" />
+          <path
+             d="M2409.8 836.8 L2404.5 836.8 L2399.2 836.8 L2404.5 823.5 Z"
+             id="path34" />
+          <path
+             d="M2670.7 830.4 L2636.5 851 L2636.5 901.5 L2636.5 901.5 "
+             fill="none"
+             id="path35" />
+          <path
+             d="M2673.4 835.0 L2670.7 830.4 L2667.9 825.8 L2682.1 823.5 Z"
+             id="path36" />
+          <path
+             d="M2588.0 638.7 L2752.5 711 L2752.5 738.5 L2752.5 738.5 "
+             fill="none"
+             id="path37" />
+          <path
+             d="M2590.1 633.8 L2588.0 638.7 L2585.8 643.6 L2575.8 633.3 Z"
+             id="path38" />
+          <path
+             d="M2834.3 830.4 L2868.5 851 L2868.5 871 L2868.5 871.0 "
+             fill="none"
+             id="path39" />
+          <path
+             d="M2837.1 825.8 L2834.3 830.4 L2831.6 835.0 L2822.9 823.5 Z"
+             id="path40" />
+          <g
+             data-name="Connection&lt;N&gt;"
+             id="g49">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="Connection&lt;N&gt;"
+               id="g42">
+              <rect
+                 x="533.0"
+                 y="523.5"
+                 height="47.0"
+                 width="138.0"
+                 data-name="Connection&lt;N&gt;"
+                 id="rect40" />
+              <path
+                 d="M533.0 554.5 L671.0 554.5"
+                 fill="none"
+                 data-name="Connection&lt;N&gt;"
+                 id="path41" />
+              <path
+                 d="M533.0 562.5 L671.0 562.5"
+                 fill="none"
+                 data-name="Connection&lt;N&gt;"
+                 id="path42" />
+            </g>
+            <g
+               transform="translate(533, 523.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="Connection&lt;N&gt;"
+               id="g44">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="Connection&lt;N&gt;"
+                 id="g43">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\core\workflow-editor.ts.Connection&lt;N&gt;"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\core\workflow-editor.ts">
+                  <text
+                     x="61.0"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="Connection&lt;N&gt;"
+                     id="text42">Connection&lt;N&gt;</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(533, 554.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="Connection&lt;N&gt;"
+               id="g46">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="Connection&lt;N&gt;"
+                 id="g45" />
+            </g>
+            <g
+               transform="translate(533, 562.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="Connection&lt;N&gt;"
+               id="g48">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="Connection&lt;N&gt;"
+                 id="g47" />
+            </g>
+          </g>
+          <g
+             data-name="WorkflowEditor"
+             id="g73">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="WorkflowEditor"
+               id="g50">
+              <rect
+                 x="0.0"
+                 y="0.0"
+                 height="363.0"
+                 width="443.0"
+                 data-name="WorkflowEditor"
+                 id="rect49" />
+              <path
+                 d="M0.0 31.0 L443.0 31.0"
+                 fill="none"
+                 data-name="WorkflowEditor"
+                 id="path49" />
+              <path
+                 d="M0.0 197.0 L443.0 197.0"
+                 fill="none"
+                 data-name="WorkflowEditor"
+                 id="path50" />
+            </g>
+            <g
+               transform="translate(0, 0)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="WorkflowEditor"
+               id="g52">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="WorkflowEditor"
+                 id="g51">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\core\workflow-editor.ts.WorkflowEditor"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\core\workflow-editor.ts">
+                  <text
+                     x="213.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="WorkflowEditor"
+                     id="text50">WorkflowEditor</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(0, 31)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="WorkflowEditor"
+               id="g62">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="WorkflowEditor"
+                 id="g61">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text52">+project: Project</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text53">+nodeEditor: WorkflowNodeEditor&lt;Schemes&gt;</text>
+                <text
+                   x="0.0"
+                   y="43.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text54">+connection: ConnectionPlugin&lt;Schemes, AreaExtra&gt;</text>
+                <text
+                   x="0.0"
+                   y="58.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text55">+id: string</text>
+                <text
+                   x="0.0"
+                   y="73.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text56">+name: string</text>
+                <text
+                   x="0.0"
+                   y="88.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text57">+area: AreaPlugin&lt;Schemes, AreaExtra&gt;</text>
+                <text
+                   x="0.0"
+                   y="103.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text58">+render: AngularPlugin&lt;Schemes, AreaExtra&gt;</text>
+                <text
+                   x="0.0"
+                   y="118.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text59">+dock: DockPlugin&lt;Schemes&gt;</text>
+                <text
+                   x="0.0"
+                   y="133.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text60">+injector: Injector</text>
+                <text
+                   x="0.0"
+                   y="148.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text61">+arrange: AutoArrangePlugin&lt;Schemes, never&gt;</text>
+              </g>
+            </g>
+            <g
+               transform="translate(0, 197)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="WorkflowEditor"
+               id="g72">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="WorkflowEditor"
+                 id="g71">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text62">-connectionRule(): void</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text63">-customRender(): void</text>
+                <text
+                   x="0.0"
+                   y="43.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text64">+importProject(): Promise&lt;void&gt;</text>
+                <text
+                   x="0.0"
+                   y="58.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text65">+exportProject(): Project</text>
+                <text
+                   x="0.0"
+                   y="73.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text66">+saveProject(): void</text>
+                <text
+                   x="0.0"
+                   y="88.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text67">-buildDockContent(): void</text>
+                <text
+                   x="0.0"
+                   y="103.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text68">-serializePort(): NodePort</text>
+                <text
+                   x="0.0"
+                   y="118.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text69">-serializeControl(): NodeControl</text>
+                <text
+                   x="0.0"
+                   y="133.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text70">+getNodes(): Promise&lt;Nodes[]&gt;</text>
+                <text
+                   x="0.0"
+                   y="148.5"
+                   stroke="none"
+                   data-name="WorkflowEditor"
+                   id="text71">-socketFactory(): Sockets | Socket</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="Connection&lt;Source,Target&gt;"
+             id="g77">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="Connection&lt;Source,Target&gt;"
+               id="g74">
+              <rect
+                 x="483.0"
+                 y="166.0"
+                 height="31.0"
+                 width="238.0"
+                 data-name="Connection&lt;Source,Target&gt;"
+                 id="rect73" />
+            </g>
+            <g
+               transform="translate(483, 166)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="Connection&lt;Source,Target&gt;"
+               id="g76">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="Connection&lt;Source,Target&gt;"
+                 id="g75">
+                <text
+                   x="111.0"
+                   y="13.5"
+                   stroke="none"
+                   text-anchor="middle"
+                   data-name="Connection&lt;Source,Target&gt;"
+                   id="text74">Connection&lt;Source,Target&gt;</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="WorkflowNodeEditor&lt;Scheme&gt;"
+             id="g85">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="WorkflowNodeEditor&lt;Scheme&gt;"
+               id="g78">
+              <rect
+                 x="725.0"
+                 y="523.5"
+                 height="47.0"
+                 width="260.0"
+                 data-name="WorkflowNodeEditor&lt;Scheme&gt;"
+                 id="rect77" />
+              <path
+                 d="M725.0 554.5 L985.0 554.5"
+                 fill="none"
+                 data-name="WorkflowNodeEditor&lt;Scheme&gt;"
+                 id="path77" />
+              <path
+                 d="M725.0 562.5 L985.0 562.5"
+                 fill="none"
+                 data-name="WorkflowNodeEditor&lt;Scheme&gt;"
+                 id="path78" />
+            </g>
+            <g
+               transform="translate(725, 523.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="WorkflowNodeEditor&lt;Scheme&gt;"
+               id="g80">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="WorkflowNodeEditor&lt;Scheme&gt;"
+                 id="g79">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\core\workflow-node-editor.ts.WorkflowNodeEditor&lt;Scheme&gt;"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\core\workflow-node-editor.ts">
+                  <text
+                     x="122.0"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="WorkflowNodeEditor&lt;Scheme&gt;"
+                     id="text78">WorkflowNodeEditor&lt;Scheme&gt;</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(725, 554.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="WorkflowNodeEditor&lt;Scheme&gt;"
+               id="g82">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="WorkflowNodeEditor&lt;Scheme&gt;"
+                 id="g81" />
+            </g>
+            <g
+               transform="translate(725, 562.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="WorkflowNodeEditor&lt;Scheme&gt;"
+               id="g84">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="WorkflowNodeEditor&lt;Scheme&gt;"
+                 id="g83" />
+            </g>
+          </g>
+          <g
+             data-name="NodeEditor&lt;Scheme&gt;"
+             id="g89">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="NodeEditor&lt;Scheme&gt;"
+               id="g86">
+              <rect
+                 x="761.0"
+                 y="166.0"
+                 height="31.0"
+                 width="188.0"
+                 data-name="NodeEditor&lt;Scheme&gt;"
+                 id="rect85" />
+            </g>
+            <g
+               transform="translate(761, 166)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="NodeEditor&lt;Scheme&gt;"
+               id="g88">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="NodeEditor&lt;Scheme&gt;"
+                 id="g87">
+                <text
+                   x="86.0"
+                   y="13.5"
+                   stroke="none"
+                   text-anchor="middle"
+                   data-name="NodeEditor&lt;Scheme&gt;"
+                   id="text86">NodeEditor&lt;Scheme&gt;</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="DatasetType"
+             id="g97">
+            <g
+               fill="lightgreen"
+               stroke="#33322E"
+               data-name="DatasetType"
+               id="g90">
+              <rect
+                 x="989.0"
+                 y="128.0"
+                 height="107.0"
+                 width="121.0"
+                 data-name="DatasetType"
+                 id="rect89" />
+              <path
+                 d="M989.0 159.0 L1110.0 159.0"
+                 fill="none"
+                 data-name="DatasetType"
+                 id="path89" />
+            </g>
+            <g
+               transform="translate(989, 128)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DatasetType"
+               id="g92">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="DatasetType"
+                 id="g91">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\enums\dataset-type.ts.DatasetType"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\enums\dataset-type.ts">
+                  <text
+                     x="52.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="DatasetType"
+                     id="text90">DatasetType</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(989, 159)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DatasetType"
+               id="g96">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="DatasetType"
+                 id="g95">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="DatasetType"
+                   id="text92">Mongo</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="DatasetType"
+                   id="text93">FilePath</text>
+                <text
+                   x="0.0"
+                   y="43.5"
+                   stroke="none"
+                   data-name="DatasetType"
+                   id="text94">MySQL</text>
+                <text
+                   x="0.0"
+                   y="58.5"
+                   stroke="none"
+                   data-name="DatasetType"
+                   id="text95">HuggingFace</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="StatusNode"
+             id="g105">
+            <g
+               fill="lightgreen"
+               stroke="#33322E"
+               data-name="StatusNode"
+               id="g98">
+              <rect
+                 x="1150.0"
+                 y="128.0"
+                 height="107.0"
+                 width="108.0"
+                 data-name="StatusNode"
+                 id="rect97" />
+              <path
+                 d="M1150.0 159.0 L1258.0 159.0"
+                 fill="none"
+                 data-name="StatusNode"
+                 id="path97" />
+            </g>
+            <g
+               transform="translate(1150, 128)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="StatusNode"
+               id="g100">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="StatusNode"
+                 id="g99">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\enums\status-node.ts.StatusNode"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\enums\status-node.ts">
+                  <text
+                     x="46.0"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="StatusNode"
+                     id="text98">StatusNode</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(1150, 159)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="StatusNode"
+               id="g104">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="StatusNode"
+                 id="g103">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="StatusNode"
+                   id="text100">Error</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="StatusNode"
+                   id="text101">Incomplete</text>
+                <text
+                   x="0.0"
+                   y="43.5"
+                   stroke="none"
+                   data-name="StatusNode"
+                   id="text102">Complete</text>
+                <text
+                   x="0.0"
+                   y="58.5"
+                   stroke="none"
+                   data-name="StatusNode"
+                   id="text103">Validated</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="NodeBlock"
+             id="g124">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="NodeBlock"
+               id="g106">
+              <rect
+                 x="2182.8"
+                 y="403.0"
+                 height="288.0"
+                 width="393.0"
+                 data-name="NodeBlock"
+                 id="rect105" />
+              <path
+                 d="M2182.8 434.0 L2575.8 434.0"
+                 fill="none"
+                 data-name="NodeBlock"
+                 id="path105" />
+              <path
+                 d="M2182.8 570.0 L2575.8 570.0"
+                 fill="none"
+                 data-name="NodeBlock"
+                 id="path106" />
+            </g>
+            <g
+               transform="translate(2182.75, 403)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="NodeBlock"
+               id="g108">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="NodeBlock"
+                 id="g107">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\nodes\node-block.ts.NodeBlock"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\nodes\node-block.ts">
+                  <text
+                     x="188.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="NodeBlock"
+                     id="text106">NodeBlock</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(2182.75, 434)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="NodeBlock"
+               id="g116">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="NodeBlock"
+                 id="g115">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text108">+status: StatusNode</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text109">+statusMessage: string</text>
+                <text
+                   x="0.0"
+                   y="43.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text110">+errorStacktrace: string[]</text>
+                <text
+                   x="0.0"
+                   y="58.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text111">+rebuildLocally: boolean</text>
+                <text
+                   x="0.0"
+                   y="73.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text112">-statusControl: StatusControl</text>
+                <text
+                   x="0.0"
+                   y="88.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text113">+width: number</text>
+                <text
+                   x="0.0"
+                   y="103.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text114">+height: number</text>
+                <text
+                   x="0.0"
+                   y="118.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text115">+area: AreaPlugin&lt;Schemes, AreaExtra&gt;</text>
+              </g>
+            </g>
+            <g
+               transform="translate(2182.75, 570)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="NodeBlock"
+               id="g123">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="NodeBlock"
+                 id="g122">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text116">+data(): { status: StatusNode</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text117">statusMessage: string</text>
+                <text
+                   x="0.0"
+                   y="43.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text118">errorStacktrace: string[]</text>
+                <text
+                   x="0.0"
+                   y="58.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text119">}</text>
+                <text
+                   x="0.0"
+                   y="73.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text120">+getNodeComponent(): typeof NodeComponent</text>
+                <text
+                   x="0.0"
+                   y="88.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text121">+updateStatus(): void</text>
+                <text
+                   x="0.0"
+                   y="103.5"
+                   stroke="none"
+                   data-name="NodeBlock"
+                   id="text122">+abstract getRevision(): string</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="Node&lt;Inputs,Outputs,Controls&gt;"
+             id="g128">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="Node&lt;Inputs,Outputs,Controls&gt;"
+               id="g125">
+              <rect
+                 x="2246.8"
+                 y="166.0"
+                 height="31.0"
+                 width="265.0"
+                 data-name="Node&lt;Inputs,Outputs,Controls&gt;"
+                 id="rect124" />
+            </g>
+            <g
+               transform="translate(2246.75, 166)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="Node&lt;Inputs,Outputs,Controls&gt;"
+               id="g127">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="Node&lt;Inputs,Outputs,Controls&gt;"
+                 id="g126">
+                <text
+                   x="124.5"
+                   y="13.5"
+                   stroke="none"
+                   text-anchor="middle"
+                   data-name="Node&lt;Inputs,Outputs,Controls&gt;"
+                   id="text125">Node&lt;Inputs,Outputs,Controls&gt;</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="BaseSocket"
+             id="g136">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="BaseSocket"
+               id="g129">
+              <rect
+                 x="1088.5"
+                 y="504.5"
+                 height="85.0"
+                 width="489.0"
+                 data-name="BaseSocket"
+                 id="rect128" />
+              <path
+                 d="M1088.5 535.5 L1577.5 535.5"
+                 fill="none"
+                 data-name="BaseSocket"
+                 id="path128" />
+              <path
+                 d="M1088.5 543.5 L1577.5 543.5"
+                 fill="none"
+                 data-name="BaseSocket"
+                 id="path129" />
+            </g>
+            <g
+               transform="translate(1088.5, 504.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="BaseSocket"
+               id="g131">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="BaseSocket"
+                 id="g130">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\core\sockets\sockets.ts.BaseSocket"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\core\sockets\sockets.ts">
+                  <text
+                     x="236.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="BaseSocket"
+                     id="text129">BaseSocket</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(1088.5, 535.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="BaseSocket"
+               id="g133">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="BaseSocket"
+                 id="g132" />
+            </g>
+            <g
+               transform="translate(1088.5, 543.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="BaseSocket"
+               id="g135">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="BaseSocket"
+                 id="g134">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="BaseSocket"
+                   id="text133">+getSocketComponent(): any</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="BaseSocket"
+                   id="text134">+getConnectionComponent(): typeof ConnectionComponent</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="FlatObjectSocket"
+             id="g144">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="FlatObjectSocket"
+               id="g137">
+              <rect
+                 x="630.5"
+                 y="738.5"
+                 height="85.0"
+                 width="249.0"
+                 data-name="FlatObjectSocket"
+                 id="rect136" />
+              <path
+                 d="M630.5 769.5 L879.5 769.5"
+                 fill="none"
+                 data-name="FlatObjectSocket"
+                 id="path136" />
+              <path
+                 d="M630.5 777.5 L879.5 777.5"
+                 fill="none"
+                 data-name="FlatObjectSocket"
+                 id="path137" />
+            </g>
+            <g
+               transform="translate(630.5, 738.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="FlatObjectSocket"
+               id="g139">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="FlatObjectSocket"
+                 id="g138">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\core\sockets\sockets.ts.FlatObjectSocket"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\core\sockets\sockets.ts">
+                  <text
+                     x="116.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="FlatObjectSocket"
+                     id="text137">FlatObjectSocket</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(630.5, 769.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="FlatObjectSocket"
+               id="g141">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="FlatObjectSocket"
+                 id="g140" />
+            </g>
+            <g
+               transform="translate(630.5, 777.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="FlatObjectSocket"
+               id="g143">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="FlatObjectSocket"
+                 id="g142">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="FlatObjectSocket"
+                   id="text141">+isCompatibleWith(): boolean</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="FlatObjectSocket"
+                   id="text142">+getSocketComponent(): any</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="DeepObjectSocket"
+             id="g152">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="DeepObjectSocket"
+               id="g145">
+              <rect
+                 x="919.5"
+                 y="746.0"
+                 height="70.0"
+                 width="249.0"
+                 data-name="DeepObjectSocket"
+                 id="rect144" />
+              <path
+                 d="M919.5 777.0 L1168.5 777.0"
+                 fill="none"
+                 data-name="DeepObjectSocket"
+                 id="path144" />
+              <path
+                 d="M919.5 785.0 L1168.5 785.0"
+                 fill="none"
+                 data-name="DeepObjectSocket"
+                 id="path145" />
+            </g>
+            <g
+               transform="translate(919.5, 746)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="DeepObjectSocket"
+               id="g147">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="DeepObjectSocket"
+                 id="g146">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\core\sockets\sockets.ts.DeepObjectSocket"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\core\sockets\sockets.ts">
+                  <text
+                     x="116.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="DeepObjectSocket"
+                     id="text145">DeepObjectSocket</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(919.5, 777)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DeepObjectSocket"
+               id="g149">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="DeepObjectSocket"
+                 id="g148" />
+            </g>
+            <g
+               transform="translate(919.5, 785)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DeepObjectSocket"
+               id="g151">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="DeepObjectSocket"
+                 id="g150">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="DeepObjectSocket"
+                   id="text149">+isCompatibleWith(): boolean</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="LrsObjectSocket"
+             id="g160">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="LrsObjectSocket"
+               id="g153">
+              <rect
+                 x="1208.5"
+                 y="746.0"
+                 height="70.0"
+                 width="249.0"
+                 data-name="LrsObjectSocket"
+                 id="rect152" />
+              <path
+                 d="M1208.5 777.0 L1457.5 777.0"
+                 fill="none"
+                 data-name="LrsObjectSocket"
+                 id="path152" />
+              <path
+                 d="M1208.5 785.0 L1457.5 785.0"
+                 fill="none"
+                 data-name="LrsObjectSocket"
+                 id="path153" />
+            </g>
+            <g
+               transform="translate(1208.5, 746)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="LrsObjectSocket"
+               id="g155">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="LrsObjectSocket"
+                 id="g154">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\core\sockets\sockets.ts.LrsObjectSocket"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\core\sockets\sockets.ts">
+                  <text
+                     x="116.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="LrsObjectSocket"
+                     id="text153">LrsObjectSocket</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(1208.5, 777)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="LrsObjectSocket"
+               id="g157">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="LrsObjectSocket"
+                 id="g156" />
+            </g>
+            <g
+               transform="translate(1208.5, 785)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="LrsObjectSocket"
+               id="g159">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="LrsObjectSocket"
+                 id="g158">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="LrsObjectSocket"
+                   id="text157">+isCompatibleWith(): boolean</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="SimpleFieldSocket"
+             id="g168">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="SimpleFieldSocket"
+               id="g161">
+              <rect
+                 x="1497.5"
+                 y="746.0"
+                 height="70.0"
+                 width="249.0"
+                 data-name="SimpleFieldSocket"
+                 id="rect160" />
+              <path
+                 d="M1497.5 777.0 L1746.5 777.0"
+                 fill="none"
+                 data-name="SimpleFieldSocket"
+                 id="path160" />
+              <path
+                 d="M1497.5 785.0 L1746.5 785.0"
+                 fill="none"
+                 data-name="SimpleFieldSocket"
+                 id="path161" />
+            </g>
+            <g
+               transform="translate(1497.5, 746)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="SimpleFieldSocket"
+               id="g163">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="SimpleFieldSocket"
+                 id="g162">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\core\sockets\sockets.ts.SimpleFieldSocket"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\core\sockets\sockets.ts">
+                  <text
+                     x="116.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="SimpleFieldSocket"
+                     id="text161">SimpleFieldSocket</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(1497.5, 777)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="SimpleFieldSocket"
+               id="g165">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="SimpleFieldSocket"
+                 id="g164" />
+            </g>
+            <g
+               transform="translate(1497.5, 785)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="SimpleFieldSocket"
+               id="g167">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="SimpleFieldSocket"
+                 id="g166">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="SimpleFieldSocket"
+                   id="text165">+isCompatibleWith(): boolean</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="Socket"
+             id="g172">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="Socket"
+               id="g169">
+              <rect
+                 x="1298.0"
+                 y="166.0"
+                 height="31.0"
+                 width="70.0"
+                 data-name="Socket"
+                 id="rect168" />
+            </g>
+            <g
+               transform="translate(1298, 166)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="Socket"
+               id="g171">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="Socket"
+                 id="g170">
+                <text
+                   x="27.0"
+                   y="13.5"
+                   stroke="none"
+                   text-anchor="middle"
+                   data-name="Socket"
+                   id="text169">Socket</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="DataFileBlock"
+             id="g180">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="DataFileBlock"
+               id="g173">
+              <rect
+                 x="1143.0"
+                 y="890.0"
+                 height="70.0"
+                 width="144.0"
+                 data-name="DataFileBlock"
+                 id="rect172" />
+              <path
+                 d="M1143.0 921.0 L1287.0 921.0"
+                 fill="none"
+                 data-name="DataFileBlock"
+                 id="path172" />
+              <path
+                 d="M1143.0 929.0 L1287.0 929.0"
+                 fill="none"
+                 data-name="DataFileBlock"
+                 id="path173" />
+            </g>
+            <g
+               transform="translate(1143, 890)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="DataFileBlock"
+               id="g175">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="DataFileBlock"
+                 id="g174">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\nodes\inputdata\data-file-block.ts.DataFileBlock"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\nodes\inputdata\data-file-block.ts">
+                  <text
+                     x="64.0"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="DataFileBlock"
+                     id="text173">DataFileBlock</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(1143, 921)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DataFileBlock"
+               id="g177">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="DataFileBlock"
+                 id="g176" />
+            </g>
+            <g
+               transform="translate(1143, 929)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DataFileBlock"
+               id="g179">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="DataFileBlock"
+                 id="g178">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="DataFileBlock"
+                   id="text177">+execute(): void</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="InputDataBlock"
+             id="g189">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="InputDataBlock"
+               id="g181">
+              <rect
+                 x="1786.5"
+                 y="731.0"
+                 height="100.0"
+                 width="200.0"
+                 data-name="InputDataBlock"
+                 id="rect180" />
+              <path
+                 d="M1786.5 762.0 L1986.5 762.0"
+                 fill="none"
+                 data-name="InputDataBlock"
+                 id="path180" />
+              <path
+                 d="M1786.5 770.0 L1986.5 770.0"
+                 fill="none"
+                 data-name="InputDataBlock"
+                 id="path181" />
+            </g>
+            <g
+               transform="translate(1786.5, 731)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="InputDataBlock"
+               id="g183">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="InputDataBlock"
+                 id="g182">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\nodes\inputdata\input-data-block.ts.InputDataBlock"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\nodes\inputdata\input-data-block.ts">
+                  <text
+                     x="92.0"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="InputDataBlock"
+                     id="text181">InputDataBlock</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(1786.5, 762)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="InputDataBlock"
+               id="g185">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="InputDataBlock"
+                 id="g184" />
+            </g>
+            <g
+               transform="translate(1786.5, 770)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="InputDataBlock"
+               id="g188">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="InputDataBlock"
+                 id="g187">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="InputDataBlock"
+                   id="text185">+getRevision(): string</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="InputDataBlock"
+                   id="text186">+execute(): void</text>
+                <text
+                   x="0.0"
+                   y="43.5"
+                   stroke="none"
+                   data-name="InputDataBlock"
+                   id="text187">+testConnection(): void</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="DataHuggingBlock"
+             id="g197">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="DataHuggingBlock"
+               id="g190">
+              <rect
+                 x="1327.0"
+                 y="890.0"
+                 height="70.0"
+                 width="162.0"
+                 data-name="DataHuggingBlock"
+                 id="rect189" />
+              <path
+                 d="M1327.0 921.0 L1489.0 921.0"
+                 fill="none"
+                 data-name="DataHuggingBlock"
+                 id="path189" />
+              <path
+                 d="M1327.0 929.0 L1489.0 929.0"
+                 fill="none"
+                 data-name="DataHuggingBlock"
+                 id="path190" />
+            </g>
+            <g
+               transform="translate(1327, 890)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="DataHuggingBlock"
+               id="g192">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="DataHuggingBlock"
+                 id="g191">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\nodes\inputdata\data-hugging-block.ts.DataHuggingBlock"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\nodes\inputdata\data-hugging-block.ts">
+                  <text
+                     x="73.0"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="DataHuggingBlock"
+                     id="text190">DataHuggingBlock</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(1327, 921)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DataHuggingBlock"
+               id="g194">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="DataHuggingBlock"
+                 id="g193" />
+            </g>
+            <g
+               transform="translate(1327, 929)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DataHuggingBlock"
+               id="g196">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="DataHuggingBlock"
+                 id="g195">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="DataHuggingBlock"
+                   id="text194">+execute(): void</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="DataLrsBlock"
+             id="g205">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="DataLrsBlock"
+               id="g198">
+              <rect
+                 x="1529.0"
+                 y="890.0"
+                 height="70.0"
+                 width="144.0"
+                 data-name="DataLrsBlock"
+                 id="rect197" />
+              <path
+                 d="M1529.0 921.0 L1673.0 921.0"
+                 fill="none"
+                 data-name="DataLrsBlock"
+                 id="path197" />
+              <path
+                 d="M1529.0 929.0 L1673.0 929.0"
+                 fill="none"
+                 data-name="DataLrsBlock"
+                 id="path198" />
+            </g>
+            <g
+               transform="translate(1529, 890)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="DataLrsBlock"
+               id="g200">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="DataLrsBlock"
+                 id="g199">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\nodes\inputdata\data-lrs-block.ts.DataLrsBlock"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\nodes\inputdata\data-lrs-block.ts">
+                  <text
+                     x="64.0"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="DataLrsBlock"
+                     id="text198">DataLrsBlock</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(1529, 921)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DataLrsBlock"
+               id="g202">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="DataLrsBlock"
+                 id="g201" />
+            </g>
+            <g
+               transform="translate(1529, 929)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DataLrsBlock"
+               id="g204">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="DataLrsBlock"
+                 id="g203">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="DataLrsBlock"
+                   id="text202">+execute(): void</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="DataMongoBlock"
+             id="g213">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="DataMongoBlock"
+               id="g206">
+              <rect
+                 x="1713.0"
+                 y="890.0"
+                 height="70.0"
+                 width="150.0"
+                 data-name="DataMongoBlock"
+                 id="rect205" />
+              <path
+                 d="M1713.0 921.0 L1863.0 921.0"
+                 fill="none"
+                 data-name="DataMongoBlock"
+                 id="path205" />
+              <path
+                 d="M1713.0 929.0 L1863.0 929.0"
+                 fill="none"
+                 data-name="DataMongoBlock"
+                 id="path206" />
+            </g>
+            <g
+               transform="translate(1713, 890)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="DataMongoBlock"
+               id="g208">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="DataMongoBlock"
+                 id="g207">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\nodes\inputdata\data-mongo-block.ts.DataMongoBlock"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\nodes\inputdata\data-mongo-block.ts">
+                  <text
+                     x="67.0"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="DataMongoBlock"
+                     id="text206">DataMongoBlock</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(1713, 921)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DataMongoBlock"
+               id="g210">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="DataMongoBlock"
+                 id="g209" />
+            </g>
+            <g
+               transform="translate(1713, 929)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DataMongoBlock"
+               id="g212">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="DataMongoBlock"
+                 id="g211">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="DataMongoBlock"
+                   id="text210">+execute(): void</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="DataMysqlBlock"
+             id="g221">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="DataMysqlBlock"
+               id="g214">
+              <rect
+                 x="1903.0"
+                 y="890.0"
+                 height="70.0"
+                 width="144.0"
+                 data-name="DataMysqlBlock"
+                 id="rect213" />
+              <path
+                 d="M1903.0 921.0 L2047.0 921.0"
+                 fill="none"
+                 data-name="DataMysqlBlock"
+                 id="path213" />
+              <path
+                 d="M1903.0 929.0 L2047.0 929.0"
+                 fill="none"
+                 data-name="DataMysqlBlock"
+                 id="path214" />
+            </g>
+            <g
+               transform="translate(1903, 890)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="DataMysqlBlock"
+               id="g216">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="DataMysqlBlock"
+                 id="g215">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\nodes\inputdata\data-mysql-block.ts.DataMysqlBlock"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\nodes\inputdata\data-mysql-block.ts">
+                  <text
+                     x="64.0"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="DataMysqlBlock"
+                     id="text214">DataMysqlBlock</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(1903, 921)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DataMysqlBlock"
+               id="g218">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="DataMysqlBlock"
+                 id="g217" />
+            </g>
+            <g
+               transform="translate(1903, 929)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="DataMysqlBlock"
+               id="g220">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="DataMysqlBlock"
+                 id="g219">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="DataMysqlBlock"
+                   id="text218">+execute(): void</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="ExampleInput"
+             id="g229">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="ExampleInput"
+               id="g222">
+              <rect
+                 x="2087.0"
+                 y="871.0"
+                 height="108.0"
+                 width="185.0"
+                 data-name="ExampleInput"
+                 id="rect221" />
+              <path
+                 d="M2087.0 902.0 L2272.0 902.0"
+                 fill="none"
+                 data-name="ExampleInput"
+                 id="path221" />
+              <path
+                 d="M2087.0 948.0 L2272.0 948.0"
+                 fill="none"
+                 data-name="ExampleInput"
+                 id="path222" />
+            </g>
+            <g
+               transform="translate(2087, 871)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="ExampleInput"
+               id="g224">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="ExampleInput"
+                 id="g223">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\nodes\inputs\example-input.ts.ExampleInput"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\nodes\inputs\example-input.ts">
+                  <text
+                     x="84.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="ExampleInput"
+                     id="text222">ExampleInput</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(2087, 902)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="ExampleInput"
+               id="g226">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="ExampleInput"
+                 id="g225">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="ExampleInput"
+                   id="text224">+width: number</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="ExampleInput"
+                   id="text225">+height: number</text>
+              </g>
+            </g>
+            <g
+               transform="translate(2087, 948)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="ExampleInput"
+               id="g228">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="ExampleInput"
+                 id="g227">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="ExampleInput"
+                   id="text226">+getRevision(): string</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="OutputDataBlock"
+             id="g237">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="OutputDataBlock"
+               id="g230">
+              <rect
+                 x="2312.0"
+                 y="738.5"
+                 height="85.0"
+                 width="185.0"
+                 data-name="OutputDataBlock"
+                 id="rect229" />
+              <path
+                 d="M2312.0 769.5 L2497.0 769.5"
+                 fill="none"
+                 data-name="OutputDataBlock"
+                 id="path229" />
+              <path
+                 d="M2312.0 777.5 L2497.0 777.5"
+                 fill="none"
+                 data-name="OutputDataBlock"
+                 id="path230" />
+            </g>
+            <g
+               transform="translate(2312, 738.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="OutputDataBlock"
+               id="g232">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="OutputDataBlock"
+                 id="g231">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\nodes\output\output-data-block.ts.OutputDataBlock"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\nodes\output\output-data-block.ts">
+                  <text
+                     x="84.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="OutputDataBlock"
+                     id="text230">OutputDataBlock</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(2312, 769.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="OutputDataBlock"
+               id="g234">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="OutputDataBlock"
+                 id="g233" />
+            </g>
+            <g
+               transform="translate(2312, 777.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="OutputDataBlock"
+               id="g236">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="OutputDataBlock"
+                 id="g235">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="OutputDataBlock"
+                   id="text234">+getRevision(): string</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="OutputDataBlock"
+                   id="text235">+execute(): void</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="ExampleOutput"
+             id="g245">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="ExampleOutput"
+               id="g238">
+              <rect
+                 x="2312.0"
+                 y="871.0"
+                 height="108.0"
+                 width="185.0"
+                 data-name="ExampleOutput"
+                 id="rect237" />
+              <path
+                 d="M2312.0 902.0 L2497.0 902.0"
+                 fill="none"
+                 data-name="ExampleOutput"
+                 id="path237" />
+              <path
+                 d="M2312.0 948.0 L2497.0 948.0"
+                 fill="none"
+                 data-name="ExampleOutput"
+                 id="path238" />
+            </g>
+            <g
+               transform="translate(2312, 871)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="ExampleOutput"
+               id="g240">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="ExampleOutput"
+                 id="g239">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\nodes\outputs\example-output.ts.ExampleOutput"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\nodes\outputs\example-output.ts">
+                  <text
+                     x="84.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="ExampleOutput"
+                     id="text238">ExampleOutput</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(2312, 902)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="ExampleOutput"
+               id="g242">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="ExampleOutput"
+                 id="g241">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="ExampleOutput"
+                   id="text240">+width: number</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="ExampleOutput"
+                   id="text241">+height: number</text>
+              </g>
+            </g>
+            <g
+               transform="translate(2312, 948)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="ExampleOutput"
+               id="g244">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="ExampleOutput"
+                 id="g243">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="ExampleOutput"
+                   id="text242">+getRevision(): string</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="CustomTransformBlock"
+             id="g253">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="CustomTransformBlock"
+               id="g246">
+              <rect
+                 x="2537.0"
+                 y="901.5"
+                 height="47.0"
+                 width="199.0"
+                 data-name="CustomTransformBlock"
+                 id="rect245" />
+              <path
+                 d="M2537.0 932.5 L2736.0 932.5"
+                 fill="none"
+                 data-name="CustomTransformBlock"
+                 id="path245" />
+              <path
+                 d="M2537.0 940.5 L2736.0 940.5"
+                 fill="none"
+                 data-name="CustomTransformBlock"
+                 id="path246" />
+            </g>
+            <g
+               transform="translate(2537, 901.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="CustomTransformBlock"
+               id="g248">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="CustomTransformBlock"
+                 id="g247">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\nodes\transform\custom-transform-block.ts.CustomTransformBlock"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\nodes\transform\custom-transform-block.ts">
+                  <text
+                     x="91.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="CustomTransformBlock"
+                     id="text246">CustomTransformBlock</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(2537, 932.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="CustomTransformBlock"
+               id="g250">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="CustomTransformBlock"
+                 id="g249" />
+            </g>
+            <g
+               transform="translate(2537, 940.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="CustomTransformBlock"
+               id="g252">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="CustomTransformBlock"
+                 id="g251" />
+            </g>
+          </g>
+          <g
+             data-name="TransformBlock"
+             id="g261">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="TransformBlock"
+               id="g254">
+              <rect
+                 x="2660.0"
+                 y="738.5"
+                 height="85.0"
+                 width="185.0"
+                 data-name="TransformBlock"
+                 id="rect253" />
+              <path
+                 d="M2660.0 769.5 L2845.0 769.5"
+                 fill="none"
+                 data-name="TransformBlock"
+                 id="path253" />
+              <path
+                 d="M2660.0 777.5 L2845.0 777.5"
+                 fill="none"
+                 data-name="TransformBlock"
+                 id="path254" />
+            </g>
+            <g
+               transform="translate(2660, 738.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="TransformBlock"
+               id="g256">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="TransformBlock"
+                 id="g255">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\nodes\transform\transform-block.ts.TransformBlock"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\nodes\transform\transform-block.ts">
+                  <text
+                     x="84.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="TransformBlock"
+                     id="text254">TransformBlock</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(2660, 769.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="TransformBlock"
+               id="g258">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 data-name="TransformBlock"
+                 id="g257" />
+            </g>
+            <g
+               transform="translate(2660, 777.5)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="TransformBlock"
+               id="g260">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="TransformBlock"
+                 id="g259">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="TransformBlock"
+                   id="text258">+getRevision(): string</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="TransformBlock"
+                   id="text259">+execute(): void</text>
+              </g>
+            </g>
+          </g>
+          <g
+             data-name="ExampleTransform"
+             id="g269">
+            <g
+               fill="#eee8d5"
+               stroke="#33322E"
+               data-name="ExampleTransform"
+               id="g262">
+              <rect
+                 x="2776.0"
+                 y="871.0"
+                 height="108.0"
+                 width="185.0"
+                 data-name="ExampleTransform"
+                 id="rect261" />
+              <path
+                 d="M2776.0 902.0 L2961.0 902.0"
+                 fill="none"
+                 data-name="ExampleTransform"
+                 id="path261" />
+              <path
+                 d="M2776.0 948.0 L2961.0 948.0"
+                 fill="none"
+                 data-name="ExampleTransform"
+                 id="path262" />
+            </g>
+            <g
+               transform="translate(2776, 871)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="bold"
+               font-style="normal"
+               data-name="ExampleTransform"
+               id="g264">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="center"
+                 data-name="ExampleTransform"
+                 id="g263">
+                <a
+                   id="d:\Prometheus\daav\frontendApp\src\app\nodes\transforms\example-transform.ts.ExampleTransform"
+                   xlink:href="d:\Prometheus\daav\frontendApp\src\app\nodes\transforms\example-transform.ts">
+                  <text
+                     x="84.5"
+                     y="13.5"
+                     stroke="none"
+                     text-anchor="middle"
+                     data-name="ExampleTransform"
+                     id="text262">ExampleTransform</text>
+                </a>
+              </g>
+            </g>
+            <g
+               transform="translate(2776, 902)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="ExampleTransform"
+               id="g266">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="ExampleTransform"
+                 id="g265">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="ExampleTransform"
+                   id="text264">+width: number</text>
+                <text
+                   x="0.0"
+                   y="28.5"
+                   stroke="none"
+                   data-name="ExampleTransform"
+                   id="text265">+height: number</text>
+              </g>
+            </g>
+            <g
+               transform="translate(2776, 948)"
+               font-family="Helvetica"
+               font-size="12pt"
+               font-weight="normal"
+               font-style="normal"
+               data-name="ExampleTransform"
+               id="g268">
+              <g
+                 transform="translate(8, 8)"
+                 fill="#33322E"
+                 text-align="left"
+                 data-name="ExampleTransform"
+                 id="g267">
+                <text
+                   x="0.0"
+                   y="13.5"
+                   stroke="none"
+                   data-name="ExampleTransform"
+                   id="text266">+getRevision(): string</text>
+              </g>
+            </g>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

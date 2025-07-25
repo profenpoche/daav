@@ -1,0 +1,74 @@
+@startuml
+enum DatasetType {
+    Mongo
+    FilePath
+    MySQL
+    HuggingFace
+}
+class Folder {
+    +parent?: Folder
+    +name: string
+    +id: number
+}
+interface DatasetsI {
+    +id: string
+    +name: string
+    +description: string
+    +parentFolder: Folder
+    +type: DatasetType
+    +filePath: string
+    +file: File
+    +uri: string
+    +database: string
+    +collection: string
+    +host: string
+    +user: string
+    +password: string
+    +table: string
+    +url: string
+}
+interface DataConnector extends DatasetsI {
+    +revision: string
+}
+interface NodeConnection {
+    +id: string
+    +sourceNode: string
+    +targetNode: string
+    +sourcePort: string
+    +targetPort: string
+}
+interface NodeControl {
+    +type: any
+    +id: string
+    +readonly: boolean
+    +value: any
+    +__type: any
+}
+interface NodePort {
+    +id: string
+    +label?: string
+    +socket: { name: string; }
+}
+interface Node {
+    +id: string
+    +type: string
+    +label: string
+    +inputs: NodePort[]
+    +outputs: NodePort[]
+    +controls: NodeControl[]
+    +revision?: string
+    +data?: any
+}
+interface Schema {
+    +nodes: Node[]
+    +connections: NodeConnection[]
+    +revision?: string
+}
+interface Project {
+    +id: string
+    +name: string
+    +revision?: string
+    +dataConnectors: DataConnector[]
+    +schema: Schema
+}
+@enduml

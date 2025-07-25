@@ -1,0 +1,7 @@
+  <div id="rete-container" #rete></div>
+  <div id="toolbar">
+    <ion-input i18n *ngIf="workflow" label="Project Name : " labelPlacement="floating" [(ngModel)]="workflow.name" placeholder="Project Name"></ion-input>
+    <ion-button (click)="export()" i18n>Export</ion-button>
+    <ion-button (click)="import()" i18n>Import</ion-button>
+    <ion-button (click)="saveProject()" i18n>Save</ion-button>
+  </div>

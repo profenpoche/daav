@@ -1,0 +1,138 @@
+
+classDiagram
+
+class Connection~N~{
+            
+            
+        }
+class WorkflowEditor{
+            +project: Project
++nodeEditor: WorkflowNodeEditor~Schemes~
++connection: ConnectionPlugin~Schemes, AreaExtra~
++id: string
++name: string
++area: AreaPlugin~Schemes, AreaExtra~
++render: AngularPlugin~Schemes, AreaExtra~
++dock: DockPlugin~Schemes~
++injector: Injector
++arrange: AutoArrangePlugin~Schemes, never~
+            -connectionRule() void
+-customRender() void
++importProject() Promise~void~
++exportProject() Project
++saveProject() void
+-buildDockContent() void
+-serializePort() NodePort
+-serializeControl() NodeControl
++getNodes() Promise~Nodes[]~
+-socketFactory() Sockets | Socket
+        }
+Connection~Source,Target~<|--Connection~N~
+class WorkflowNodeEditor~Scheme~{
+            
+            
+        }
+NodeEditor~Scheme~<|--WorkflowNodeEditor~Scheme~
+class NodeBlock{
+            +status: StatusNode
++statusMessage: string
++errorStacktrace: string[]
++rebuildLocally: boolean
+-statusControl: StatusControl
++width: number
++height: number
++area: AreaPlugin~Schemes, AreaExtra~
+            +data() { status: StatusNode; statusMessage: string; errorStacktrace: string[]; }
++getNodeComponent() typeof NodeComponent
++updateStatus() void
++getRevision() string*
+        }
+Node~Inputs,Outputs,Controls~<|--NodeBlock
+class BaseSocket{
+            
+            +getSocketComponent() any
++getConnectionComponent() typeof ConnectionComponent
+        }
+class FlatObjectSocket{
+            
+            +isCompatibleWith() boolean
++getSocketComponent() any
+        }
+class DeepObjectSocket{
+            
+            +isCompatibleWith() boolean
+        }
+class LrsObjectSocket{
+            
+            +isCompatibleWith() boolean
+        }
+class SimpleFieldSocket{
+            
+            +isCompatibleWith() boolean
+        }
+Socket<|--BaseSocket
+BaseSocket<|--FlatObjectSocket
+BaseSocket<|--DeepObjectSocket
+BaseSocket<|--LrsObjectSocket
+BaseSocket<|--SimpleFieldSocket
+class DataFileBlock{
+            
+            +execute() void
+        }
+InputDataBlock<|--DataFileBlock
+class DataHuggingBlock{
+            
+            +execute() void
+        }
+InputDataBlock<|--DataHuggingBlock
+class DataLrsBlock{
+            
+            +execute() void
+        }
+InputDataBlock<|--DataLrsBlock
+class DataMongoBlock{
+            
+            +execute() void
+        }
+InputDataBlock<|--DataMongoBlock
+class DataMysqlBlock{
+            
+            +execute() void
+        }
+InputDataBlock<|--DataMysqlBlock
+class InputDataBlock{
+            
+            +getRevision() string
++execute() void
++testConnection() void
+        }
+NodeBlock<|--InputDataBlock
+class ExempleInput{
+            +width: number
++height: number
+            +getRevision() string
+        }
+InputDataBlock<|--ExempleInput
+class OutputDataBlock{
+            
+            +getRevision() string
++execute() void
+        }
+NodeBlock<|--OutputDataBlock
+class CustomTransformBlock{
+            
+            
+        }
+TransformBlock<|--CustomTransformBlock
+class TransformBlock{
+            
+            +getRevision() string
++execute() void
+        }
+NodeBlock<|--TransformBlock
+class ExempleTransform{
+            +width: number
++height: number
+            +getRevision() string
+        }
+TransformBlock<|--ExempleTransform

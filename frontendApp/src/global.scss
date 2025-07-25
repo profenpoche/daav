@@ -1,0 +1,203 @@
+/*
+ * App Global CSS
+ * ----------------------------------------------------------------------------
+ * Put style rules here that you want to apply globally. These styles are for
+ * the entire app and not just one component. Additionally, this file can be
+ * used as an entry point to import other CSS/Sass files to be included in the
+ * output CSS.
+ * For more information on global stylesheets, visit the documentation:
+ * https://ionicframework.com/docs/layout/global-stylesheets
+ */
+
+/* Core CSS required for Ionic components to work properly */
+@import "@ionic/angular/css/core.css";
+
+/* Basic CSS for apps built with Ionic */
+@import "@ionic/angular/css/normalize.css";
+@import "@ionic/angular/css/structure.css";
+@import "@ionic/angular/css/typography.css";
+@import "@ionic/angular/css/display.css";
+
+/* Optional CSS utils that can be commented out */
+@import "@ionic/angular/css/padding.css";
+@import "@ionic/angular/css/float-elements.css";
+@import "@ionic/angular/css/text-alignment.css";
+@import "@ionic/angular/css/text-transformation.css";
+@import "@ionic/angular/css/flex-utils.css";
+@import "~jsoneditor/dist/jsoneditor.min.css";
+
+@font-face {
+  font-family: 'poppins';
+  src: url(assets/font/Poppins-Variable.ttf);
+}
+
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url(assets/font/OpenDyslexic-Regular.otf);
+}
+
+::selection {
+  color: var(--white);
+  background-color: var(--pinkPtx);
+}
+
+:root {
+  --socket-size: 13px;
+  --custom-transition: 150ms all;
+
+  // NEUTRAL ---------------------------------------------------------
+  --black: #1e1e1e;
+  --grayDark: #9a9a9a;
+  --grayMedium: #cdcdcd;
+  --grayLight: #eeeeee;
+  --white: #ffffff;
+
+  // PTX ---------------------------------------------------------
+  --darkPtx: #1a243d;
+  --darkPtxLight: #aaadb3;
+
+  --bluePtx: #00a2ae;
+  --bluePtxLight2: #93cbcf;
+  --bluePtxLight: #d5eef0;
+
+  --pinkPtx: #d93fff;
+  --pinkPtxLight: #d7abe5;
+
+  --greenVision: #00d28c;
+  --greenVisionLight: #a5ffe1;
+
+
+  // RETE ---------------------------------------------------------
+  --inputNode: var(--bluePtx);
+  --inputNodeLight: var(--bluePtxLight2);
+
+  --outputNode: var(--pinkPtx);
+  --outputNodeLight: var(--pinkPtxLight);
+
+  --transformNode: var(--darkPtx);
+  --transformNodeLight: var(--darkPtxLight);
+
+  --connector: var(--darkPtx);
+  --activeConnector: var(--darkPtx);
+  --inactiveConnector: var(--darkPtxLight);
+
+
+  // IONIC ---------------------------------------------------------
+  --ion-color-primary: var(--darkPtx);
+  --ion-color-primary-tint: var(--darkPtxLight);
+  --ion-color-primary-contrast: var(--white);
+
+  --ion-color-secondary: var(--bluePtx);
+  --ion-color-secondary-tint: var(--bluePtxLight);
+  --ion-color-secondary-contrast: var(--white);
+
+  --ion-color-tertiary: var(--pinkPtx);
+  --ion-color-tertiary-tint: var(--pinkPtxLight);
+  --ion-color-tertiary-contrast: var(--white);
+
+  --ion-color-dark: var(--black);
+  --ion-color-dark-tint: var(--grayDark);
+  --ion-color-dark-contrast: var(--white);
+
+  --ion-color-medium: var(--grayMedium);
+  --ion-color-medium-tint: var(--grayLight);
+  --ion-color-medium-contrast: var(--black);
+
+  --ion-color-light: var(--white);
+  --ion-color-light-tint: var(--grayLight);
+  --ion-color-light-contrast: var(--black);
+
+  // FONT ---------------------------------------------------------
+  --ion-font-family: "poppins";
+  --ion-default-font: "poppins";
+}
+
+body {
+  font-family: 'poppins' !important;
+}
+
+.poppins {
+  --ion-default-font: 'poppins' !important;
+  --ion-font-family: 'poppins' !important;
+}
+
+.OpenDyslexic {
+  --ion-default-font: 'OpenDyslexic' !important;
+  --ion-font-family: 'OpenDyslexic' !important;
+}
+
+ion-item {
+  --border-color: var(--grayMedium);
+}
+
+ion-button {
+  text-transform: none;
+}
+
+ion-modal {
+  --border-radius: 20px;
+  --border-width: 2px;
+  --border-style: solid;
+  --border-color: var(--darkPtx);
+  --height: auto;
+  --background: var(--darkPtx);
+
+  ion-toolbar {
+    --background: var(--darkPtx);
+  }
+
+  ion-title {
+    color: var(--white);
+    font-weight: 700;
+  }
+
+  &.bottom {
+    align-items: flex-end;
+  }
+
+  .ion-page {
+    position: relative;
+    display: block;
+    contain: content;
+
+    .inner-content {
+      max-height: 50vh;
+      overflow: auto;
+      padding: 0px;
+    }
+  }
+
+  ion-content {
+    min-height: 50vh;
+    min-width: 600px;
+    overflow: auto;
+    padding: 0px;
+  }
+}
+
+.radio-group-wrapper {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.url-save-button{
+  background: #17243f !important;
+  border-radius: 20px !important;
+  color: white !important;
+  font-size: inherit !important;
+  width: max-content !important;
+  white-space: nowrap;
+}
+
+.url-save-button-disabled{
+  background: var(--grayDark) !important;
+  border-radius: 20px !important;
+  color: white !important;
+  width: max-content !important;
+  white-space: nowrap;
+  font-size: inherit !important;
+}
+.control.mat-mdc-form-field {
+    width: 100%;
+}

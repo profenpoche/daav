@@ -1,0 +1,66 @@
+<div>
+  <!-- Dataset Information Section -->
+  <div class="dataset-info-section">
+    <h3>Dataset Information</h3>
+
+    <div class="info-grid">
+      <div class="info-item">
+        <label>Dataset Name:</label>
+        <span>{{ dataset.name || 'Unnamed Dataset' }}</span>
+      </div>
+
+      <div class="info-item">
+        <label>Dataset ID:</label>
+        <span>{{ dataset.id }}</span>
+      </div>
+
+      <div class="info-item" *ngIf="dataset.filePath">
+        <label>File Path:</label>
+        <span>{{ dataset.filePath || 'Not specified' }}</span>
+      </div>
+
+      <div class="info-item" *ngIf="dataset.folder">
+        <label>Folder:</label>
+        <span>{{ dataset.folder || 'Default folder' }}</span>
+      </div>
+
+      <div class="info-item">
+        <label>Input Type:</label>
+        <span class="input-type-badge">{{ dataset.inputType || 'Unknown' }}</span>
+      </div>
+
+      <div class="info-item" *ngIf="dataset.csvDelimiter">
+        <label>CSV Delimiter:</label>
+        <span class="delimiter-display">{{ getDelimiterDisplay(dataset.csvDelimiter) }}</span>
+      </div>
+
+      <div class="info-item" *ngIf="dataset.csvHeader">
+        <label>CSV Header:</label>
+        <span>{{ dataset.csvHeader }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Configuration Section -->
+  <div class="configuration-section" *ngif="dataset.ifExist">
+    <h3>File Configuration</h3>
+
+    <div class="form-group">
+      <span>Choose what to do if the output file already exists</span>
+      <mat-form-field appearance="fill">
+
+        <mat-label>If file exists</mat-label>
+        <mat-select
+          [value]="dataset.ifExist"
+          (selectionChange)="onIfExistChange($event.value)">
+          <mat-option
+            *ngFor="let option of ifExistOptions"
+            [value]="option.value">
+            {{ option.label }}
+          </mat-option>
+        </mat-select>
+
+      </mat-form-field>
+    </div>
+  </div>
+</div>

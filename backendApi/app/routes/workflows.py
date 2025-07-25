@@ -1,0 +1,722 @@
+import logging
+from fastapi import APIRouter, HTTPException, status, Body
+from typing import List, Optional
+import uuid
+from app.models.interface.workflow_interface import IProject
+from app.services.workflow_service import workflow_service
+from app.core.workflow import Workflow
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(
+    prefix="/workflows",
+    tags=["workflows"], 
+    responses={404: {"description": "Not found"}}
+)
+
+@router.get("/", response_model=List[IProject])
+async def get_workflows() -> List[IProject]:
+    """
+    Fetch the list of workflows.
+
+    This endpoint retrieves all workflows stored in the database.
+
+    Returns:
+        List[IProject]: A list of workflow projects.
+        
+    Raises:
+        HTTPException: 500 if there's an internal server error.
+        
+    Example:
+        ```
+        GET /workflows/
+        ```
+        
+    Response:
+        ```json
+        [
+            {
+                "id": "workflow-123",
+                "name": "My Workflow",
+                "revision": "1.0",
+                "dataConnectors": [],
+                "schema": {...},
+                "created_at": "2023-01-01T00:00:00",
+                "updated_at": "2023-01-01T00:00:00"
+            }
+        ]
+        ```
+    """
+    try:
+        logger.info("Fetching all workflows")
+        workflows = await workflow_service.get_workflows()
+        logger.info(f"Successfully returned {len(workflows)} workflows")
+        return workflows
+    except Exception as e:
+        logger.error(f"Error fetching workflows: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/{id}", response_model=IProject)
+async def get_workflow(id: str) -> IProject:
+    """
+    Retrieve a workflow by its ID.
+
+    This endpoint fetches a specific workflow from the database using its unique identifier.
+
+    Args:
+        id (str): The unique identifier of the workflow to retrieve.
+
+    Returns:
+        IProject: The workflow with the specified ID.
+
+    Raises:
+        HTTPException: 404 if the workflow with the specified ID is not found.
+        HTTPException: 500 if there's an internal server error.
+        
+    Example:
+        ```
+        GET /workflows/workflow-123
+        ```
+        
+    Response:
+        ```json
+        {
+            "id": "workflow-123",
+            "name": "My Workflow",
+            "revision": "1.0",
+            "dataConnectors": ["connector-1", "connector-2"],
+            "schema": {
+                "nodes": [...],
+                "connections": [...],
+                "revision": "1.0"
+            },
+            "created_at": "2023-01-01T00:00:00",
+            "updated_at": "2023-01-01T00:00:00"
+        }
+        ```
+    """
+    try:
+        logger.info(f"Fetching workflow with ID: {id}")
+        workflow = await workflow_service.get_workflow(id)
+        return workflow
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching workflow {id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/", response_model=IProject, status_code=status.HTTP_201_CREATED)
+async def create_workflow(workflow_json: str = Body(..., description="JSON string representation of the workflow")) -> IProject:
+    """
+    Create a new workflow.
+
+    This endpoint creates a new workflow in the database from a JSON representation.
+    If no ID is provided, a new UUID will be automatically generated.
+
+    Args:
+        workflow_json (str): The JSON string representation of the workflow to create.
+                           Must contain at least 'name' and 'schema' fields.
+
+    Returns:
+        IProject: The newly created workflow with generated timestamps.
+
+    Raises:
+        HTTPException: 400 if the workflow data is invalid.
+        HTTPException: 500 if there's an internal server error.
+        
+    Example:
+        ```
+        POST /workflows/
+        Content-Type: application/json
+        
+        "{
+            \"name\": \"Data Processing Workflow\",
+            \"revision\": \"1.0\",
+            \"dataConnectors\": [\"connector-123\", \"connector-456\"],
+            \"schema\": {
+                \"nodes\": [
+                    {
+                        \"id\": \"node-1\",
+                        \"type\": \"input\",
+                        \"label\": \"Data Input\",
+                        \"inputs\": {},
+                        \"outputs\": {
+                            \"output1\": {
+                                \"id\": \"output1\",
+                                \"label\": \"Data Output\",
+                                \"socket\": {
+                                    \"name\": \"data\"
+                                }
+                            }
+                        },
+                        \"controls\": {
+                            \"dataset\": {
+                                \"type\": \"select\",
+                                \"id\": \"dataset\",
+                                \"readonly\": false,
+                                \"value\": \"dataset-123\",
+                                \"__type\": \"control\"
+                            }
+                        },
+                        \"position\": {
+                            \"x\": 100,
+                            \"y\": 200
+                        },
+                        \"data\": {
+                            \"selectedDataset\": \"dataset-123\"
+                        }
+                    },
+                    {
+                        \"id\": \"node-2\",
+                        \"type\": \"filter\",
+                        \"label\": \"Data Filter\",
+                        \"inputs\": {
+                            \"input1\": {
+                                \"id\": \"input1\",
+                                \"label\": \"Data Input\",
+                                \"socket\": {
+                                    \"name\": \"data\"
+                                }
+                            }
+                        },
+                        \"outputs\": {
+                            \"output1\": {
+                                \"id\": \"output1\",
+                                \"label\": \"Filtered Data\",
+                                \"socket\": {
+                                    \"name\": \"data\"
+                                }
+                            }
+                        },
+                        \"controls\": {
+                            \"condition\": {
+                                \"type\": \"text\",
+                                \"id\": \"condition\",
+                                \"readonly\": false,
+                                \"value\": \"age > 18\",
+                                \"__type\": \"control\"
+                            }
+                        },
+                        \"position\": {
+                            \"x\": 400,
+                            \"y\": 200
+                        },
+                        \"data\": {
+                            \"filterCondition\": \"age > 18\"
+                        }
+                    }
+                ],
+                \"connections\": [
+                    {
+                        \"id\": \"connection-1\",
+                        \"sourceNode\": \"node-1\",
+                        \"targetNode\": \"node-2\",
+                        \"sourcePort\": \"output1\",
+                        \"targetPort\": \"input1\"
+                    }
+                ],
+                \"revision\": \"1.0\"
+            }
+        }"
+        ```
+        
+    Response:
+        ```json
+        {
+            "id": "generated-uuid-123",
+            "name": "Data Processing Workflow",
+            "revision": "1.0",
+            "dataConnectors": ["connector-123", "connector-456"],
+            "schema": {
+                "nodes": [
+                    {
+                        "id": "node-1",
+                        "type": "input",
+                        "label": "Data Input",
+                        "inputs": {},
+                        "outputs": {
+                            "output1": {
+                                "id": "output1",
+                                "label": "Data Output",
+                                "socket": {
+                                    "name": "data"
+                                }
+                            }
+                        },
+                        "controls": {
+                            "dataset": {
+                                "type": "select",
+                                "id": "dataset",
+                                "readonly": false,
+                                "value": "dataset-123",
+                                "__type": "control"
+                            }
+                        },
+                        "position": {
+                            "x": 100,
+                            "y": 200
+                        },
+                        "data": {
+                            "selectedDataset": "dataset-123"
+                        }
+                    },
+                    {
+                        "id": "node-2",
+                        "type": "filter",
+                        "label": "Data Filter",
+                        "inputs": {
+                            "input1": {
+                                "id": "input1",
+                                "label": "Data Input",
+                                "socket": {
+                                    "name": "data"
+                                }
+                            }
+                        },
+                        "outputs": {
+                            "output1": {
+                                "id": "output1",
+                                "label": "Filtered Data",
+                                "socket": {
+                                    "name": "data"
+                                }
+                            }
+                        },
+                        "controls": {
+                            "condition": {
+                                "type": "text",
+                                "id": "condition",
+                                "readonly": false,
+                                "value": "age > 18",
+                                "__type": "control"
+                            }
+                        },
+                        "position": {
+                            "x": 400,
+                            "y": 200
+                        },
+                        "data": {
+                            "filterCondition": "age > 18"
+                        }
+                    }
+                ],
+                "connections": [
+                    {
+                        "id": "connection-1",
+                        "sourceNode": "node-1",
+                        "targetNode": "node-2",
+                        "sourcePort": "output1",
+                        "targetPort": "input1"
+                    }
+                ],
+                "revision": "1.0"
+            },
+            "created_at": "2023-01-01T00:00:00",
+            "updated_at": "2023-01-01T00:00:00"
+        }
+        ```
+    """
+    try:
+        logger.info("Creating new workflow")
+        
+        # Parse JSON
+        workflow_data = IProject.model_validate_json(workflow_json)
+        
+        # Generate UUID if not provided
+        if not workflow_data.id:
+            workflow_data.id = str(uuid.uuid4())
+        
+        # Convert to dict for service
+        workflow_dict = workflow_data.model_dump(mode='json')
+        
+        # Create workflow
+        new_workflow = await workflow_service.create_workflow(workflow_dict)
+        logger.info(f"Successfully created workflow: {new_workflow.name}")
+        return new_workflow
+        
+    except Exception as e:
+        logger.error(f"Error creating workflow: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create workflow")
+
+@router.put("/", response_model=IProject)
+async def update_workflow(workflow_json: str = Body(..., description="JSON string representation of the workflow to update")) -> IProject:
+    """
+    Update an existing workflow.
+
+    This endpoint updates an existing workflow in the database. The workflow ID must be provided
+    in the JSON data to identify which workflow to update.
+
+    Args:
+        workflow_json (str): The JSON string representation of the updated workflow.
+                           Must include the 'id' field to identify the workflow to update.
+
+    Returns:
+        IProject: The updated workflow with new timestamp.
+
+    Raises:
+        HTTPException: 400 if the workflow ID is missing or data is invalid.
+        HTTPException: 404 if the workflow with the specified ID is not found.
+        HTTPException: 500 if there's an internal server error.
+        
+    Example:
+        ```
+        PUT /workflows/
+        Content-Type: application/json
+        
+        "{
+            \"id\": \"workflow-123\",
+            \"name\": \"Updated Workflow\",
+            \"revision\": \"2.0\",
+            \"dataConnectors\": [\"connector-1\"],
+            \"schema\": {
+                \"nodes\": [...],
+                \"connections\": [...],
+                \"revision\": \"2.0\"
+            }
+        }"
+        ```
+        
+    Response:
+        ```json
+        {
+            "id": "workflow-123",
+            "name": "Updated Workflow",
+            "revision": "2.0",
+            "dataConnectors": ["connector-1"],
+            "schema": {...},
+            "created_at": "2023-01-01T00:00:00",
+            "updated_at": "2023-01-01T12:00:00"
+        }
+        ```
+    """
+    try:
+        logger.info("Updating workflow")
+        
+        # Parse JSON
+        workflow_data = IProject.model_validate_json(workflow_json)
+        
+        if not workflow_data.id:
+            raise HTTPException(status_code=400, detail="Workflow ID is required for update")
+        
+        # Convert to dict for service
+        workflow_dict = workflow_data.model_dump(mode='json')
+        
+        # Update workflow
+        updated_workflow = await workflow_service.update_workflow(workflow_dict)
+        logger.info(f"Successfully updated workflow: {updated_workflow.name}")
+        return updated_workflow
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating workflow: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update workflow")
+
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_workflow(id: str):
+    """
+    Delete a workflow by its ID.
+
+    This endpoint permanently removes a workflow from the database.
+    This operation cannot be undone.
+
+    Args:
+        id (str): The unique identifier of the workflow to delete.
+
+    Returns:
+        None: Returns 204 No Content on successful deletion.
+
+    Raises:
+        HTTPException: 404 if the workflow with the specified ID is not found.
+        HTTPException: 500 if there's an internal server error.
+        
+    Example:
+        ```
+        DELETE /workflows/workflow-123
+        ```
+        
+    Response:
+        ```
+        HTTP 204 No Content
+        ```
+    """
+    try:
+        logger.info(f"Deleting workflow with ID: {id}")
+        success = await workflow_service.delete_workflow(id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        
+        logger.info(f"Successfully deleted workflow: {id}")
+        return
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting workflow {id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/execute/{id}", status_code=status.HTTP_200_OK, response_model=IProject)
+async def execute_workflow(id: str):
+    """
+    Execute a workflow by its ID.
+
+    This endpoint executes all nodes in a workflow sequentially according to their connections.
+    The workflow will process all data (not limited to samples).
+
+    Args:
+        id (str): The unique identifier of the workflow to execute.
+
+    Returns:
+        IProject: The updated project configuration after execution, including any output data.
+
+    Raises:
+        HTTPException: 404 if the workflow with the specified ID is not found.
+        HTTPException: 500 if there's an execution error or internal server error.
+        
+    Example:
+        ```
+        POST /workflows/execute/workflow-123
+        ```
+        
+    Response:
+        ```json
+        {
+            "id": "workflow-123",
+            "name": "My Workflow",
+            "schema": {
+                "nodes": [...],
+                "connections": [...],
+                "revision": "1.0"
+            },
+            "updated_at": "2023-01-01T12:00:00"
+        }
+        ```
+    """
+    try:
+        logger.info(f"Executing workflow with ID: {id}")
+        workflow_data = await get_workflow_data_by_id(id)
+        result = await import_and_execute_workflow(workflow_data)
+        logger.info(f"Successfully executed workflow: {id}")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error executing workflow {id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to execute workflow")
+
+@router.post("/execute_node/{id}/{node_id}", status_code=status.HTTP_200_OK, response_model=IProject)
+async def execute_node(id: str, node_id: str):
+    """
+    Execute a specific node in a workflow by its ID.
+
+    This endpoint executes only a specific node within a workflow.
+    This operation works on a sample level (limited to 20 items) for performance reasons.
+
+    Args:
+        id (str): The unique identifier of the workflow containing the node.
+        node_id (str): The unique identifier of the node to execute within the workflow.
+
+    Returns:
+        IProject: The updated project configuration after node execution, with sample data.
+
+    Raises:
+        HTTPException: 404 if the workflow or node with the specified IDs is not found.
+        HTTPException: 500 if there's an execution error or internal server error.
+        
+    Example:
+        ```
+        POST /workflows/execute_node/workflow-123/node-456
+        ```
+        
+    Response:
+        ```json
+        {
+            "id": "workflow-123",
+            "name": "My Workflow",
+            "schema": {
+                "nodes": [...],
+                "connections": [...],
+                "revision": "1.0"
+            },
+            "updated_at": "2023-01-01T12:00:00"
+        }
+        ```
+    """
+    try:
+        logger.info(f"Executing node {node_id} in workflow {id}")
+        workflow_data = await get_workflow_data_by_id(id)
+        
+        if node_id not in [node.id for node in workflow_data.pschema.nodes]:
+            raise HTTPException(status_code=404, detail="Node not found in workflow")
+        
+        result = await import_and_execute_workflow(workflow_data, node_id=node_id, sample=True)
+        logger.info(f"Successfully executed node {node_id} in workflow {id}")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error executing node {node_id} in workflow {id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to execute node")
+
+@router.post("/execute", status_code=status.HTTP_200_OK, response_model=IProject)
+async def execute_workflow_json(workflow_json: IProject = Body(..., description="The workflow object to execute")):
+    """
+    Execute a workflow from its JSON representation.
+
+    This endpoint allows you to execute a workflow without storing it in the database first.
+    Useful for testing workflows or one-time executions.
+
+    Args:
+        workflow_json (IProject): The complete workflow object to execute.
+                                Must include valid schema with nodes and connections.
+
+    Returns:
+        IProject: The updated project configuration after execution, including any output data.
+
+    Raises:
+        HTTPException: 400 if the workflow data is invalid.
+        HTTPException: 500 if there's an execution error or internal server error.
+        
+    Example:
+        ```
+        POST /workflows/execute
+        Content-Type: application/json
+        
+        {
+            "id": "temp-workflow",
+            "name": "Temporary Workflow",
+            "schema": {
+                "nodes": [...],
+                "connections": [...],
+                "revision": "1.0"
+            }
+        }
+        ```
+        
+    Response:
+        ```json
+        {
+            "id": "temp-workflow",
+            "name": "Temporary Workflow",
+            "schema": {
+                "nodes": [...],
+                "connections": [...],
+                "revision": "1.0"
+            }
+        }
+        ```
+    """
+    try:
+        logger.info(f"Executing workflow from JSON: {workflow_json.name}")
+        result = await import_and_execute_workflow(workflow_json)
+        logger.info(f"Successfully executed workflow from JSON: {workflow_json.name}")
+        return result
+    except Exception as e:
+        logger.error(f"Error executing workflow from JSON: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to execute workflow")
+
+@router.post("/execute_node/{node_id}", status_code=status.HTTP_200_OK, response_model=IProject)
+async def execute_node_json(node_id: str, workflow: IProject = Body(..., description="The workflow object containing the node to execute")):
+    """
+    Execute a specific node in a workflow from its JSON representation.
+
+    This endpoint allows you to execute a specific node within a workflow without storing 
+    the workflow in the database first. This operation works on a sample level 
+    (limited to 20 items retrieved only) for performance reasons.
+
+    Args:
+        node_id (str): The unique identifier of the node to execute within the workflow.
+        workflow (IProject): The complete workflow object containing the node to execute.
+
+    Returns:
+        IProject: The updated project configuration after node execution, with sample data.
+
+    Raises:
+        HTTPException: 404 if the specified node is not found in the workflow.
+        HTTPException: 400 if the workflow data is invalid.
+        HTTPException: 500 if there's an execution error or internal server error.
+        
+    Example:
+        ```
+        POST /workflows/execute_node/node-456
+        Content-Type: application/json
+        
+        {
+            "id": "temp-workflow",
+            "name": "Temporary Workflow",
+            "schema": {
+                "nodes": [
+                    {
+                        "id": "node-456",
+                        "type": "filter",
+                        "label": "Filter Node",
+                        ...
+                    }
+                ],
+                "connections": [...],
+                "revision": "1.0"
+            }
+        }
+        ```
+        
+    Response:
+        ```json
+        {
+            "id": "temp-workflow",
+            "name": "Temporary Workflow",
+            "schema": {
+                "nodes": [...],
+                "connections": [...],
+                "revision": "1.0"
+            }
+        }
+        ```
+    """
+    try:
+        logger.info(f"Executing node {node_id} from workflow JSON: {workflow.name}")
+        
+        if node_id not in [node.id for node in workflow.pschema.nodes]:
+            raise HTTPException(status_code=404, detail="Node not found in workflow")
+        
+        result = await import_and_execute_workflow(workflow, node_id=node_id, sample=True)
+        logger.info(f"Successfully executed node {node_id} from workflow JSON")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error executing node from JSON: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to execute node")
+
+
+async def import_and_execute_workflow(workflow_data: IProject, node_id: Optional[str] = None, sample: Optional[bool] = False) -> IProject:
+    """
+    Import and execute workflow.
+    
+    Helper function that handles the actual workflow execution logic.
+    
+    Args:
+        workflow_data (IProject): The workflow to execute.
+        node_id (Optional[str]): Specific node to execute (if None, executes all).
+        sample (Optional[bool]): Whether to limit execution to sample data.
+        
+    Returns:
+        IProject: The updated workflow with execution results.
+        
+    Raises:
+        HTTPException: 500 if execution fails.
+    """
+    try:
+        logger.info(f"Executing workflow: {workflow_data.name} (Node: {node_id}, Sample: {sample})")
+        
+        workflow = Workflow()
+        workflow.import_project(workflow_data)
+        await workflow.execute_workflow(node_id=node_id, sample=sample)
+        
+        result = workflow.export_updated_project()
+        logger.info(f"Successfully executed workflow: {workflow_data.name}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error executing workflow {workflow_data.name}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to execute workflow")

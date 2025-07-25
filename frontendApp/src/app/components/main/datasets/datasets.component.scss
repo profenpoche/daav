@@ -1,0 +1,147 @@
+// Datasets List ---------------------------------------------------------
+ion-list {
+    padding-top: 0%;
+    padding-bottom: 0%;
+}
+
+.dataset-container {
+    --padding-start: 0%;
+    --inner-padding-end: 0%;
+    transition: var(--custom-transition);
+    position: relative;
+    z-index: 0;
+
+    .options-container {
+        display: none;
+    }
+    &:hover>.dataset-name {
+      width : 70%! important;
+    }
+
+    &:hover>.iconsContainer {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .dataset-name {
+        --padding-start: 30px;
+        --padding-top: 10px;
+        --padding-bottom: 10px;
+    }
+}
+
+.dataset-container:nth-of-type(odd) {
+    &::part(native) {
+        background-color: var(--grayLight) !important;
+    }
+}
+
+.dataset-container::part(native) {
+    border: 0px solid var(--grayMedium);
+    transition: var(--custom-transition);
+
+    &:hover {
+        background-color: var(--bluePtxLight) !important;
+    }
+}
+
+.dataset-name {
+    background-color: transparent;
+    color: var(--darkPtx);
+    font-weight: 650;
+    --background-hover: transparent;
+    --background-hover-opacity: 1;
+    width: 100%;
+    margin: 0px;
+    height: 100%;
+
+    span {
+        text-align: left;
+        width: fit-content;
+    }
+
+    .dataset-info-container {
+        width: 15%;
+        max-width: 200px;
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: flex-start !important;
+        padding: 10px 0px;
+        margin-right: 40px;
+
+    }
+
+    .dataset-info {
+        font-weight: 400;
+        margin-left: 5px;
+        white-space: nowrap;
+
+    }
+}
+
+.datasets-infos-container {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+
+    &.large .dataset-info {
+        overflow: hidden;
+        width: auto;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.dataset-info-container-right {
+    overflow: hidden;
+    width: 200px !important;
+}
+
+.active-dataset {
+    background-color: var(--bluePtx) !important;
+    --background-hover: var(--bluePtx);
+    color: var(--white) !important;
+
+    &::part(native) {
+        background-color: var(--bluePtx) !important;
+        --background-hover: var(--bluePtx);
+        color: var(--white) !important;
+    }
+
+    .dataset-info {
+        color: var(--white) !important;
+    }
+}
+
+// Change and delete icons ---------------------------------------------------------
+.iconsContainer {
+    margin-left: auto;
+    height: 100%;
+    display: none;
+    cursor: pointer;
+    transition: var(--custom-transition);
+    width: 10%;
+    max-width: 80px;
+
+    &:last-of-type {
+        //padding-right: 15px;
+    }
+
+    &:hover {
+        background-color: var(--darkPtx);
+
+        ion-icon {
+            color: var(--white) !important;
+        }
+    }
+}
+
+ion-icon {
+    font-size: 22px;
+    margin: 0px 15px;
+    color: var(--darkPtx);
+    transition: var(--custom-transition);
+}

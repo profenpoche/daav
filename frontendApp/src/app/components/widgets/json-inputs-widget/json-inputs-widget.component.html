@@ -1,0 +1,44 @@
+<ion-button (click)="openModal()" (pointerdown)="$event.stopPropagation()" (dblclick)="$event.stopPropagation()"
+  expand="block">Inputs json example</ion-button>
+<ion-modal [isOpen]="isModalOpen" (willDismiss)="onWillDismiss($event)">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>
+          Manage inputs
+        </ion-title>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding" scroll-y="true">
+      <cdk-accordion class="example-accordion">
+        @for (item of data.inputsDataExample; track $index) {
+          <cdk-accordion-item #accordionItem="cdkAccordionItem" class="example-accordion-item">
+            <ion-item slot="header" (click)="accordionItem.toggle()">
+              <ion-label>Input Example #{{$index + 1}}</ion-label>
+              <ion-button slot="end" fill="clear" color="danger" (click)="removeInputExample($index); $event.stopPropagation()">
+                <ion-icon name="trash-outline"></ion-icon>
+              </ion-button>
+              @if (accordionItem.expanded) {
+                <ion-icon slot="end" name="chevron-up-outline"></ion-icon>
+              }
+              @else {
+                <ion-icon slot="end" name="chevron-down-outline"></ion-icon>
+              }
+            </ion-item>
+            @if(accordionItem.expanded) {
+              <div  class="ion-padding">
+                <json-editor [options]="makeOptions()" [(ngModel)]="data.inputsDataExample[$index]" (change)="this.hasChanged=true"></json-editor>
+              </div>
+            }
+          </cdk-accordion-item>
+        }
+      </cdk-accordion>
+
+      <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+        <ion-fab-button (click)="addInputExample()">
+          <ion-icon name="add"></ion-icon>
+        </ion-fab-button>
+      </ion-fab>
+    </ion-content>
+  </ng-template>
+</ion-modal>

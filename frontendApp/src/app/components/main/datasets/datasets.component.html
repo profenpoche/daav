@@ -1,0 +1,35 @@
+<div slot="content">
+  <ion-list>
+      @for(dataset of datasetService.datasets();track dataset.id){
+        <ion-item class="dataset-container">
+          <ion-button expand="full" fill="clear" class="dataset-name" (click)="selectDataset(dataset)" (ionFocus)="activeDataset($event)">
+            <div class="datasets-infos-container" [ngClass]="{'large':width === 'large'}">
+              <div class="dataset-info-container"><span class="dataset-info-title" >Name: </span><span class="dataset-info">{{dataset.name}}</span></div>
+              @if(width === "large"){
+                <div class="dataset-info-container dataset-info-container-right"><span class="dataset-info-title"> Type: </span><span class="dataset-info">{{dataset.type}}</span></div>
+                @if (dataset['host']) {<div class="dataset-info-container dataset-info-container-right"><span class="dataset-info-title"> Host: </span><span class="dataset-info">{{dataset['host']}}</span></div>}
+                @if (dataset['uri']) {<div class="dataset-info-container dataset-info-container-right"><span class="dataset-info-title"> Uri: </span><span class="dataset-info">{{dataset['uri']}}</span></div>}
+                @if (dataset['url']) {<div class="dataset-info-container dataset-info-container-right"><span class="dataset-info-title"> Url: </span><span class="dataset-info">{{dataset['url']}}</span></div>}
+                @if (dataset['type'] === 'mongo' || dataset['type'] === 'mysql') {<div class="dataset-info-container dataset-info-container-right"><span class="dataset-info-title"> Database:</span> <span class="dataset-info">{{dataset['database']}} @if(dataset['database'] === ''){*}</span></div>}
+                @if (dataset['type'] === 'mongo') {<div class="dataset-info-container dataset-info-container-right"><span class="dataset-info-title"> Collection:</span> <span class="dataset-info">{{dataset['collection']}} @if(dataset['collection'] === ''){*}</span></div>}
+                @if (dataset['type'] === 'mysql') {<div class="dataset-info-container dataset-info-container-right"><span class="dataset-info-title"> Table:</span> <span class="dataset-info">{{dataset['table']}} @if(dataset['table'] === ''){*}</span></div>}
+                @if (dataset['type'] === 'elastic') {<div class="dataset-info-container dataset-info-container-right"><span class="dataset-info-title"> Index:</span> <span class="dataset-info">{{dataset['index']}} @if(dataset['index'] === ''){*}</span></div>}
+                @if (dataset['metadata'] && dataset['metadata']['fileType']) {<div class="dataset-info-container dataset-info-container-right"><span class="dataset-info-title"> Format: </span><span class="dataset-info">{{dataset['metadata']['fileType']}}</span></div>}
+                @if (dataset['metadata'] && dataset['metadata']['columnCount']) {<div class="dataset-info-container dataset-info-container-right"><span class="dataset-info-title"> Column:</span> <span class="dataset-info">{{dataset['metadata']['columnCount']}}</span></div>}
+                @if (dataset['metadata'] && dataset['metadata']['rowCount']) {<div class="dataset-info-container dataset-info-container-right"><span class="dataset-info-title"> Row:</span> <span class="dataset-info">{{dataset['metadata']['rowCount']}}</span></div>}
+                @if (dataset['metadata'] && dataset['metadata']['fileSize']) {<div class="dataset-info-container dataset-info-container-right"><span class="dataset-info-title"> Size:</span> <span class="dataset-info"> {{dataset['metadata']['fileSize']}}</span></div>}
+                @if (dataset['metadata'] && dataset['metadata']['accessTime']) {<div class="dataset-info-container dataset-info-container-right"><span class="dataset-info"> {{dataset['metadata']['accessTime']}}</span></div>}
+              }
+            </div>
+          </ion-button>
+          <div class="iconsContainer">
+            <ion-icon name="create-outline" (click)="openModal(dataset)"></ion-icon>
+          </div>
+          <div class="iconsContainer">
+            <ion-icon name="trash-outline" (click)="datasetService.delete(dataset)"></ion-icon>
+          </div>
+        </ion-item>
+      }
+      <app-datasets-modal #datasetModal [dataset]="editDataset"></app-datasets-modal>
+  </ion-list>
+</div>
