@@ -25,6 +25,7 @@ workflow_service = WorkflowService()
 async def get_output_from_custom_path(
     custom_path: str, 
     token: str,
+    request: Request,
     select: Optional[str] = Query(None, description="Columns to select, comma separated"),
     where: Optional[str] = Query(None, description="WHERE clause conditions")
 ):
@@ -43,7 +44,6 @@ async def get_output_from_custom_path(
                 if ((wf_node.type == "PdcOutput") and 
                     wf_node.data.get("urlInput", {}).get("value") == custom_path):
                     node = wf_node
-                    tokenInput = wf_node.data.get("tokenInput", {}).get("value")
                     break
             if node:
                 break
@@ -61,43 +61,10 @@ async def get_output_from_custom_path(
             raise HTTPException(status_code=404, detail="Output file not found")
 
         # Read and return the output file
-        if token == tokenInput:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            
-            # If filtering parameters are provided, use DuckDB
-            if select or where:
-                # Convert JSON data to DuckDB table
-                con = duckdb.connect(":memory:")
-                
-                con.execute("CREATE TABLE temp_data AS SELECT * FROM read_json(?)", [file_path])
-                
-                # Construct SQL query
-                query = "SELECT "
-                query += select if select else "*"
-                query += " FROM temp_data"
-                if where:
-                    query += f" WHERE {where}"
-                
-                # Execute query and fetch results
-                result = con.execute(query).fetchall()
-                column_names = con.execute("SELECT * FROM temp_data LIMIT 0").description
-                
-                # Convert results to dict format
-                filtered_data = [
-                    {column_names[i][0]: value for i, value in enumerate(row)}
-                    for row in result
-                ]
-                
-                data = filtered_data
-                con.close()
-
-            logger.info(f"Successfully returned filtered output for path: {custom_path}")
-            return JSONResponse(content=data)
-        else:
-            logger.warning("Invalid token provided")
-            raise HTTPException(status_code=401, detail="Invalid token provided")
-        
+        data = filter_data_with_duckdb(file_path,select, where)
+        logger.info(f"Successfully returned filtered output for path: {custom_path}")
+        return JSONResponse(content=data)
+       
     except HTTPException:
         raise
     except Exception as e:
