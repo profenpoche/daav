@@ -1,14 +1,19 @@
 import base64
 import json
+import logging
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 
+import duckdb
 import pandas as pd
 import numpy as np
 from app.config.settings import settings
 from app.models.interface.dataset_interface import Pagination, FileContentResponse
 from app.models.interface.dataset_schema import PandasColumn, PandasSchema
 from app.utils.security import PathSecurityValidator
+from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
 
 # Schéma minimal JSON:API pour validation avec jsonschema
 json_api_schema = {
@@ -444,4 +449,52 @@ def resolve_file_name(filename: str, expected_ext: str) -> str:
         
         return final_filename
 
+def filter_data_with_duckdb(filepath: str, select: Optional[str] = None, where: Optional[str] = None) -> dict:
+    """
+    Filter JSON data using DuckDB with optional SELECT and WHERE clauses
+    
+    Args:
+        filepath: path to the JSON file
+        select: Columns to select (comma separated)
+        where: WHERE clause conditions
+    
+    Returns:
+        Filtered data as list of dictionaries
+    """
+    try:
+        # Read and return the output file
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not (select or where):
+            return data
+            
+        # Convert JSON data to DuckDB table
+        # Convert JSON data to DuckDB table
+        con = duckdb.connect(":memory:")
+        
+        con.execute("CREATE TABLE temp_data AS SELECT * FROM read_json(?)", [filepath])
+        
+        # Construct SQL query
+        query = "SELECT "
+        query += select if select else "*"
+        query += " FROM temp_data"
+        if where:
+            query += f" WHERE {where}"
+        
+        # Execute query and fetch results
+        result = con.execute(query).fetchall()
+        column_names = con.execute("SELECT * FROM temp_data LIMIT 0").description
+        
+        # Convert results to dict format
+        filtered_data = [
+            {column_names[i][0]: value for i, value in enumerate(row)}
+            for row in result
+        ]
 
+        # Close the connection
+        con.close()
+        return filtered_data
+        
+    except Exception as e:
+        logger.error(f"Error filtering data with DuckDB: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error filtering data: {str(e)}")

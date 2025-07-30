@@ -1,12 +1,13 @@
 import json
 from typing import Annotated, Optional
-from fastapi import APIRouter, HTTPException, Request, Header
+from fastapi import APIRouter, HTTPException, Query, Request, Header
 from app.services.dataset_service import DatasetService
 from app import main
 import os
 from fastapi.responses import JSONResponse
 
 from app.services.workflow_service import WorkflowService
+from app.utils.utils import filter_data_with_duckdb
 
 
 router = APIRouter(prefix="/api", tags=["api"])
@@ -14,68 +15,69 @@ router = APIRouter(prefix="/api", tags=["api"])
 dataset_service = DatasetService()
 workflow_service = WorkflowService()
 
+UPLOADS_DIR = os.path.join("app", "uploads")
+
 @router.get("/{custom_path}")
-async def get_output_from_custom_path(custom_path: str, request: Request):
+async def get_output_from_custom_path(
+        custom_path: str, 
+        request: Request, 
+        token: str,
+        select: Optional[str] = Query(None, description="Columns to select, comma separated"),
+        where: Optional[str] = Query(None, description="WHERE clause conditions") 
+    ):
     workflows = await workflow_service.get_workflows()
-    node = next(
-        (
-            node
-            for wf in workflows
-            for node in wf.get("pschema", {}).get("nodes", [])
-            if node.get("type") == "ApiOutput"
-            and node.get("data", {}).get("urlInput", {}).get("value") == custom_path
-        ),
-        None
-    )
+    node = None
+    for wf in workflows:
+        for wf_node in wf.pschema.nodes:
+            if ((wf_node.type == "ApiOutput") and 
+                wf_node.data.get("urlInput", {}).get("value") == custom_path):
+                node = wf_node
+                tokenInput = wf_node.data.get("tokenInput", {}).get("value")
+                break
+        if node:
+            break
 
     if node is None:
         raise HTTPException(status_code=404, detail="No data found with this URL")
-
-    expected_token = node.get("data", {}).get("tokenInput", {}).get("value")
-    verify_bearer(request, expected_token)
-
-    node_id = node["id"]
-    file_path = f"{node_id}-output.json"
-    print(file_path)
+    if token != tokenInput:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    node_id = node.id
+    file_path = os.path.join(UPLOADS_DIR, f"{node_id}-output.json")
 
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Output file not found")
 
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-
+        data = filter_data_with_duckdb(file_path, select, where)
         return JSONResponse(content=data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading output file: {str(e)}")
 
 @router.get("/workflow/{workflow_id}")
-async def get_workflow_output(workflow_id: str , request: Request):
+async def get_workflow_output(workflow_id: str, select: Optional[str] = Query(None, description="Columns to select, comma separated"),
+    where: Optional[str] = Query(None, description="WHERE clause conditions")):
 
-    workflows = await workflow_service.get_workflows()
+    workflow = await workflow_service.get_workflow(workflow_id)
     
-    workflow = next((wf for wf in workflows if wf['id'] == workflow_id), None)
     if workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    api_node = next(
-        (node for node in workflow["pschema"]["nodes"] if node.get("type") == "ApiOutput"),
-        None
-    )
+    api_node = None
+    for node in workflow.pschema.nodes:
+            if node.type == "ApiOutput":
+                api_node = node
+                break
     if api_node is None:
         raise HTTPException(status_code=400, detail="ApiOutput node not found")
     
-    expected_token = api_node.get("data", {}).get("tokenInput", {}).get("value")
-    verify_bearer(request, expected_token)
-
-    node_id = api_node["id"]
-    file = f"{node_id}-output.json"
+    node_id = api_node.id
+    file = os.path.join(UPLOADS_DIR, f"{node_id}-output.json")
 
     if not os.path.isfile(file):
         raise HTTPException(status_code=404, detail=f"Unkown file")
 
     try:
-        with open(file, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        data = filter_data_with_duckdb(file, select, where)
         return JSONResponse(content=data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Can't read the file : {str(e)}")

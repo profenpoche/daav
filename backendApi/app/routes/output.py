@@ -9,6 +9,7 @@ import duckdb
 from app.services.dataset_service import DatasetService
 from app.services.workflow_service import WorkflowService
 from app.models.interface.pdc_chain_interface import PdcChainHeaders, PdcChainResponse, PdcChainRequest
+from app.utils.utils import filter_data_with_duckdb
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -24,11 +25,13 @@ workflow_service = WorkflowService()
 async def get_output_from_custom_path(
     custom_path: str, 
     token: str,
+    request: Request,
     select: Optional[str] = Query(None, description="Columns to select, comma separated"),
     where: Optional[str] = Query(None, description="WHERE clause conditions")
 ):
     """Get output from custom path by searching through workflows with optional filtering"""
     try:
+        #verify_bearer(request, token)
         logger.info(f"Searching for output with custom path: {custom_path}")
         
         # Get all workflows from the service
@@ -38,10 +41,9 @@ async def get_output_from_custom_path(
         node = None
         for wf in workflows:
             for wf_node in wf.pschema.nodes:
-                if ((wf_node.type == "PdcOutput" or wf_node.type == "ApiOutput") and 
+                if ((wf_node.type == "PdcOutput") and 
                     wf_node.data.get("urlInput", {}).get("value") == custom_path):
                     node = wf_node
-                    tokenInput = wf_node.data.get("tokenInput", {}).get("value")
                     break
             if node:
                 break
@@ -59,43 +61,10 @@ async def get_output_from_custom_path(
             raise HTTPException(status_code=404, detail="Output file not found")
 
         # Read and return the output file
-        if token == tokenInput:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            
-            # If filtering parameters are provided, use DuckDB
-            if select or where:
-                # Convert JSON data to DuckDB table
-                con = duckdb.connect(":memory:")
-                
-                con.execute("CREATE TABLE temp_data AS SELECT * FROM read_json(?)", [file_path])
-                
-                # Construct SQL query
-                query = "SELECT "
-                query += select if select else "*"
-                query += " FROM temp_data"
-                if where:
-                    query += f" WHERE {where}"
-                
-                # Execute query and fetch results
-                result = con.execute(query).fetchall()
-                column_names = con.execute("SELECT * FROM temp_data LIMIT 0").description
-                
-                # Convert results to dict format
-                filtered_data = [
-                    {column_names[i][0]: value for i, value in enumerate(row)}
-                    for row in result
-                ]
-                
-                data = filtered_data
-                con.close()
-
-            logger.info(f"Successfully returned filtered output for path: {custom_path}")
-            return JSONResponse(content=data)
-        else:
-            logger.warning("Invalid token provided")
-            raise HTTPException(status_code=401, detail="Invalid token provided")
-        
+        data = filter_data_with_duckdb(file_path,select, where)
+        logger.info(f"Successfully returned filtered output for path: {custom_path}")
+        return JSONResponse(content=data)
+       
     except HTTPException:
         raise
     except Exception as e:
@@ -103,9 +72,11 @@ async def get_output_from_custom_path(
         raise HTTPException(status_code=500, detail=f"Error processing output file: {str(e)}")
 
 @router.get("/workflow/{workflow_id}")
-async def get_workflow_output(workflow_id: str, pdc_token: str, request: Request):
+async def get_workflow_output(workflow_id: str, pdc_token: str, request: Request, select: Optional[str] = Query(None, description="Columns to select, comma separated"),
+    where: Optional[str] = Query(None, description="WHERE clause conditions")):
     """Get workflow output by workflow ID"""
     try:
+        #verify_bearer(request, pdc_token)
         logger.info(f"Getting workflow output for ID: {workflow_id}")
         
         # Get specific workflow from the service
@@ -135,9 +106,7 @@ async def get_workflow_output(workflow_id: str, pdc_token: str, request: Request
             logger.error(f"Workflow output file not found: {file_path}")
             raise HTTPException(status_code=404, detail="Output file not found")
 
-        # Read and return the output file
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        data = filter_data_with_duckdb(file_path, select, where)
         
         logger.info(f"Successfully returned workflow output for ID: {workflow_id}")
         return JSONResponse(content=data)
