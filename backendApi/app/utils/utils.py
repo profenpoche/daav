@@ -449,7 +449,7 @@ def resolve_file_name(filename: str, expected_ext: str) -> str:
         
         return final_filename
 
-def filter_data_with_duckdb(filepath: str, select: Optional[str] = None, where: Optional[str] = None) -> dict:
+def filter_data_with_duckdb(filepath: str, select: Optional[str] = None, where: Optional[str] = None, params: Optional[str] = None) -> dict:
     """
     Filter JSON data using DuckDB with optional SELECT and WHERE clauses
     
@@ -482,7 +482,7 @@ def filter_data_with_duckdb(filepath: str, select: Optional[str] = None, where: 
             query += f" WHERE {where}"
         
         # Execute query and fetch results
-        result = con.execute(query).fetchall()
+        result = con.execute(query, params).fetchall()
         column_names = con.execute("SELECT * FROM temp_data LIMIT 0").description
         
         # Convert results to dict format
