@@ -481,6 +481,7 @@ And around the project all business action  :
 ## Test specification
 
 
+
 ### Internal unit tests
 
 Front-end:
@@ -527,6 +528,86 @@ Charge Test with K6 to evaluate API performance.
 
 ### UI test 
 Front end : Selenium to test custom node usage deploy and interaction with custom parameter.
+
+
+## Testing independent features
+
+Manual tests to prove individual functionalities.
+
+### Backend Health Check: Verify backend service availability
+**Objective:** Ensure the DAAV backend service is running and responding correctly.
+
+**Precondition:** DAAV backend service is deployed and accessible.
+
+**Steps:**
+1. Send a GET request to the backend by default for docker instance : http://localhost:8081/health
+2. Verify the response status code is 200
+3. Verify the response body contains the expected JSON
+
+**Expected Result:** 
+```json
+{
+  "status": "healthy",
+  "app_name": "DAAV Backend API",
+  "environment": "production",
+  "version": "2.0.0"
+}
+```
+**Result:** Validated.
+
+
+### Test Case 1: Verify dataset creation
+**Objective:** Ensure datasets can be created with different input types.
+
+**Precondition:** DAAV interface is accessible and functional.
+
+**Steps:**
+1. Access DAAV interface
+2. Click on "Add Dataset"
+3. Select "File" as type
+4. Upload a valid JSON file 
+5. Enter a name for the dataset
+6. Confirm creation
+
+[Json example](prize.json)
+
+**Expected Result:** Dataset is created and appears in the list.
+
+**Result:** Validated.
+
+### Test Case 2: Verify workflow creation
+**Objective:** Ensure a workflow can be created and saved.
+
+**Precondition:** At least one dataset exists.
+
+**Steps:**
+1. Navigate to "Transformation" tab
+2. Click on "New Workflow"
+3. Drag and drop a DataFileBlock
+4. Configure the block by selecting the previously created dataset
+5. Add a transformation drag and drop FlattenTransfrom
+6. Add an output drag and drop FileOuput
+7. Configure the block by adding a failename
+8. Connect the blocks
+9. Save the workflow
+
+**Expected Result:** Workflow is saved with a unique ID.
+
+**Result:** Validated.
+
+### Test Case 3: Verify workflow execution
+**Objective:** Ensure a workflow can be executed.
+
+**Precondition:** A valid workflow exists.
+
+**Steps:**
+1. Select a saved workflow
+2. Click the play button
+3. Observe execution
+
+**Expected Result:** Workflow executes without error and produces expected result.
+
+**Result:** Validated.
 
 ## Partners & roles
 
