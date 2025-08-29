@@ -14,11 +14,13 @@ from app.enums.status_node import StatusNode
 from app.models.interface.node_data import NodeDataPandasDf, NodeDataParquet
 from app.services.dataset_service import DatasetService
 from app import main
+from app.services.workflow_service import WorkflowService
 from app.utils.security import PathSecurityValidator
 from app.config.settings import settings
 
 class PdcOutput(OutputNode):
     datasetService: Optional[DatasetService] = None
+    workflowService: Optional[WorkflowService] = None
 
     def __init__(self, id: str, data: Any, revision: Optional[str] = None, status: Optional[StatusNode] = None):
         """Initialize a new PDCOutput instance.
@@ -31,6 +33,7 @@ class PdcOutput(OutputNode):
         """
         super().__init__(id=id, data=data, revision=revision, status=status)
         self.datasetService = DatasetService()
+        self.workflowService = WorkflowService()
 
     
     def get_output_file_path(self) -> str:
