@@ -384,7 +384,7 @@ Node (app/nodes/node.py - base class)
 └── TransformNode (app/nodes/transforms/transform_node.py)
     ├── MergeTransform (merge_transform.py) - Merge columns from multiple sources
     ├── FlattenTransform (flatten_transform.py) - Flatten nested JSON structures
-    ├── FilterTransform (filter-transform.py) - Filter data based on conditions
+    ├── FilterTransform (filter_transform.py) - Filter data based on conditions
     └── ExampleTransform (example_transform.py) - Demo/example transform
 ```
 
