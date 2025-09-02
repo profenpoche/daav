@@ -25,7 +25,7 @@ workflow_service = WorkflowService()
 drupal_filter_converter = DrupalFilterConverter()
 
 @router.get("/{custom_path}")
-async def get_output_from_custom_path(custom_path: str, request: Request, pdc_token: str):
+async def get_output_from_custom_path(custom_path: str, request: Request,pdc_token:str | None = None):
     """
     Get output from custom path by searching through workflows with optional filtering.
     Args:
@@ -118,7 +118,7 @@ async def get_output_from_custom_path(custom_path: str, request: Request, pdc_to
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/workflow/{workflow_id}")
-async def get_workflow_output(workflow_id: str,pdc_token:str,  request: Request):
+async def get_workflow_output(workflow_id: str,  request: Request ,pdc_token:str | None = None):
     """
     Get workflow output by workflow ID with optional filtering.
     Args:
