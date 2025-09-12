@@ -32,10 +32,14 @@ async def get_output_from_custom_path(custom_path: str, request: Request,pdc_tok
         custom_path (str): The custom URL path to search for
         request (Request): FastAPI request object containing query parameters
     Returns:
-        JSONResponse: Filtered or unfiltered output data
+        JSONResponse: JSON output data, filtered if query parameters are provided.
     Raises:
-        HTTPException: 404 if path not found,
-                      500 for server errors
+        HTTPException: 
+            - 404: If no matching PdcOutput node is found.
+            - 500: For workflow execution failures, output generation issues, or unexpected errors.
+    
+    Example of filter:
+            Input: "filter[test][condition][path]=model&filter[test][condition][operator]=STARTS_WITH&filter[test][condition][value]=M"
     """
     try:
         #verify_bearer(request, pdc_token)
@@ -125,10 +129,12 @@ async def get_workflow_output(workflow_id: str,  request: Request ,pdc_token:str
         workflow_id (str): The ID of the workflow
         request (Request): FastAPI request object containing query parameters
     Returns:
-        JSONResponse: Filtered or unfiltered workflow output data
+        JSONResponse: JSON output data, filtered if query parameters are provided.
     Raises:
-        HTTPException:  404 if workflow not found,
-                      500 for server errors
+        HTTPException:  
+                    - 404 if workflow not found,
+                    - 500 for server errors
+
     """
     try:
         #verify_bearer(request, pdc_token)
