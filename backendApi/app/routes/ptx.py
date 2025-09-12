@@ -23,6 +23,8 @@ from app.routes.workflows import import_and_execute_workflow
 from app.services.dataset_service import DatasetService
 from app.services.pdc_service import PdcService
 from typing import Annotated, List, Optional
+from collections import defaultdict
+
 
 logger = logging.getLogger(__name__)
 
@@ -415,6 +417,155 @@ async def get_service_Chain(connection_id: str):
 
     return result
 
+
+@router.get("/dataExchanges/{connection_id}")
+async def get_data_exchanges(connection_id: str, request: Request):
+    """
+    Retrieve successful data exchange history for a given connection
+    For each exchange with status "IMPORT_SUCCESS", fetch details of associated resources
+
+    Returns:
+        A Json object containing grouped and detailed data exchanges history
+    
+    Example JSON response:
+    {
+        "dataExchanges": [
+            {
+                "resources": [
+                    {
+                        "id": "resource-id-1",
+                        "name": "Resource Name 1",
+                        "description": "Description of Resource 1",
+                        "owner": {
+                            "id": "owner-id-1",
+                            "name": "Owner Name 1"
+                        }
+                    },
+                    ...
+                ],
+                "contract": "contract-url",
+                "providerEndpoint": "provider-endpoint-url",
+                "consumerEndpoint": "consumer-endpoint-url",
+                "executions": [
+                    {
+                        "id": "exchange-id-1",
+                        "createdAt": "2023-10-01T12:00:00Z"
+                    },
+                    ...
+                ]
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        connection = await dataset_service.get_dataset(connection_id)
+        config = get_private_configuration(connection)
+        pdc_endpoint = config.get("endpoint")
+        data_exchanges_url = f"{pdc_endpoint}dataexchanges"
+        participant_url = f"{config.get('catalogUri')}participants/"
+        
+        response = requests.get(data_exchanges_url)
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Can't retrieve data exchange history: {response.text}"
+            )
+            
+        data_exchanges_data = response.json()
+        content = data_exchanges_data.get("content", [])
+        
+        # Cache to avoid redundant requests for the same resource
+        resource_cache = {}
+        
+        # Helper function to fetch detailed resource information
+        def get_resource_details(resource_url):
+            if resource_url in resource_cache:
+                return resource_cache[resource_url]
+            
+            try:
+                resource_response = requests.get(resource_url)
+                if resource_response.status_code == 200:
+                    resource_data = PdcDataResource.model_validate(resource_response.json())
+                    owner_url =  f"{participant_url}{resource_data.producedBy}" if resource_data.producedBy else None
+                    owner_details = pdc_service.fetch_participant(owner_url) if owner_url else {}
+                    details = {
+                        "id": resource_data.id,
+                        "name": resource_data.name,
+                        "description": resource_data.description,
+                        "owner": {
+                            "id": owner_details.id,
+                            "name": owner_details.legalName 
+                         } 
+                    }
+                    resource_cache[resource_url] = details
+                    return details
+                else:
+                    print(f"Error fetching resource {resource_url}: {resource_response.status_code}")
+                    return None
+            except Exception as e:
+                print(f"Exception while fetching resource {resource_url}: {str(e)}")
+                return None
+        
+        # Group exchanges by resources, contract, and endpoint
+        grouped_exchanges = defaultdict(lambda: {"executions": []})
+        
+        for item in content:
+            if item.get("status") != "IMPORT_SUCCESS":
+                continue
+                
+            resources = item.get("resources", [])
+            contract = item.get("contract")
+            provider_endpoint = item.get("providerEndpoint")
+            consumer_endpoint = item.get("consumerEndpoint")
+            item_id = item.get("_id")
+            created_at = item.get("createdAt")
+            
+            detailed_resources = []
+            for res in resources:
+                resource_url = res.get("resource", "")
+                resource_details = get_resource_details(resource_url)
+                
+                if resource_details:
+                    detailed_resources.append(resource_details)
+            
+            # Generate a key for grouping
+            resources_ids = tuple(sorted(res["id"] for res in detailed_resources))
+            endpoint = provider_endpoint or consumer_endpoint
+            group_key = (resources_ids, contract, endpoint)
+            
+            group = grouped_exchanges[group_key]
+            if not group["executions"]:  
+                group.update({
+                    "resources": detailed_resources,  
+                    "contract": contract
+                })
+                if provider_endpoint:
+                    group["providerEndpoint"] = provider_endpoint
+                elif consumer_endpoint:
+                    group["consumerEndpoint"] = consumer_endpoint
+            
+            execution = {"id": item_id}
+            if created_at is not None:
+                execution["createdAt"] = created_at
+            group["executions"].append(execution)
+        
+        data_exchanges = []
+        for group in grouped_exchanges.values():
+            group["executions"].sort(
+                key=lambda x: x.get("createdAt") or "",
+                reverse=True
+            )
+            data_exchanges.append(group)
+            
+        return {"dataExchanges": data_exchanges}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    
 @router.post("/trigger-data-exchange/{connection_id}")
 async def trigger_data_exchange(connection_id: str, request: Request):
     try:
