@@ -212,4 +212,124 @@
       </div>
     </ion-card>
   </div>
+  <hr class="section-divider">
+</div>
+
+<!-- Section Data Exchange history -->
+<div class="dashboard-section">
+  <div class="section-header">
+    <h2>Data exchanges history</h2>
+  </div>
+
+  <!-- Loading skeleton to display data exchange history -->
+  <div *ngIf="isLoadingHistory" class="loading-container">
+    <ion-card *ngFor="let item of getSkeletonArray(3)" class="exchange-skeleton-card">
+      <ion-card-header>
+        <ion-skeleton-text 
+          [animated]="true" 
+          style="width: 60%; height: 20px;">
+        </ion-skeleton-text>
+        <ion-skeleton-text 
+          [animated]="true" 
+          style="width: 40%; height: 16px; margin-top: 8px;">
+        </ion-skeleton-text>
+      </ion-card-header>
+    </ion-card>
+  </div>
+
+  <!-- show all data exchanges -->
+  <div *ngIf="!isLoadingHistory && dataExchanges.length > 0" class="exchanges-container">
+    <ion-card 
+      *ngFor="let exchange of dataExchanges; let i = index" 
+      class="exchange-card"
+      [class.expanded]="isExchangeExpanded(i)">
+      
+      <!-- Exchange Header -->
+      <ion-card-header class="exchange-header" (click)="toggleExchange(i)">
+        <div class="header-info">
+          <div class="exchange-title">
+            <ion-card-title>{{ exchange.resources[0]?.name || 'Unnamed Resource' }}</ion-card-title>
+            <p><strong>Description:</strong> {{ exchange.resources[0]?.description }}</p>
+            <p><strong>Owner:</strong> {{ exchange.resources[0]?.owner.name }}</p>
+            <p *ngIf="exchange.providerEndpoint">
+              <strong>Provider Endpoint:</strong> {{ exchange.providerEndpoint }}
+            </p>
+            <p *ngIf="exchange.consumerEndpoint">
+              <strong>Consumer Endpoint:</strong> {{ exchange.consumerEndpoint }}
+            </p>
+            <p><strong>Latest execution:</strong>
+              <span class="latest-date">
+                {{ getLatestExecutionDate(exchange) }}
+              </span>
+            </p>
+          </div>
+          <div class="exchange-meta">
+            <span class="execution-count">
+              <ion-icon name="repeat-outline"></ion-icon>
+              {{ getExecutionCount(exchange) }} executions
+            </span>
+          </div>
+        </div>
+        <ion-icon 
+          [name]="isExchangeExpanded(i) ? 'chevron-up-outline' : 'chevron-down-outline'"
+          class="expand-icon">
+        </ion-icon>
+      </ion-card-header>
+
+      <!-- Exchange Details (Expanded) -->
+      <ion-card-content *ngIf="isExchangeExpanded(i)" class="exchange-details">
+
+       <!-- Executions History -->
+        <div class="details-section">
+          <h4>Execution History ({{ exchange.executions.length }} total)</h4>
+          <div class="executions-list">
+            <div 
+              *ngFor="let execution of getExecutionsToShow(exchange, i); let first = first" 
+              class="execution-item"
+              [class.latest]="first">
+              <div class="execution-info">
+                <span class="execution-id">iD: {{ execution.id }}</span>  
+                <ng-container *ngIf="execution.createdAt">
+                  <ion-icon name="time-outline"></ion-icon>
+                  <span class="execution-date">
+                    {{ formatDate(execution.createdAt) }}
+                  </span>
+                </ng-container>
+              </div>
+            </div>
+            
+            <!-- Show more/Show less controls -->
+            <div *ngIf="shouldShowMoreButton(exchange)" class="show-more-controls">
+              <ion-button 
+                *ngIf="!isShowingAllExecutions(i)" 
+                fill="clear" 
+                size="small" 
+                (click)="toggleShowAllExecutions(i)"
+                class="show-more-button">
+                <ion-icon name="chevron-down-outline" slot="start"></ion-icon>
+                Show {{ getHiddenExecutionsCount(exchange) }} more executions
+              </ion-button>
+              
+              <ion-button 
+                *ngIf="isShowingAllExecutions(i)" 
+                fill="clear" 
+                size="small" 
+                (click)="toggleShowAllExecutions(i)"
+                class="show-less-button">
+                <ion-icon name="chevron-up-outline" slot="start"></ion-icon>
+                Show less
+              </ion-button>
+            </div>
+          </div>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </div>
+
+  <!-- Empty state -->
+  <div *ngIf="!isLoadingHistory && dataExchanges.length === 0" class="empty-state">
+    <ion-icon name="swap-horizontal-outline" class="empty-icon"></ion-icon>
+    <h3>No Data Exchanges Found</h3>
+    <p>There are no data exchanges in the history for this connexion.</p>
+  </div>
 </div>
