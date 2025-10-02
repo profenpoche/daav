@@ -14,6 +14,7 @@ import httpx
 import asyncio
 import pyarrow as pa
 import pyarrow.parquet as pq
+import xml.etree.ElementTree as ET
 
 from app.models.interface.pdc_chain_interface import PdcChainHeaders, PdcChainRequest, PdcChainResponse
 from app.models.interface.pdc_interface import PdcContract, PdcEcosystem, PdcParticipant, PdcServiceOffering, PdcContractBilateral, PdcDataResource
@@ -205,9 +206,21 @@ async def read_input(request: Request, response: Response, headers: Annotated[Pd
     This endpoint processes the input data and headers, fetches the PDC contract,
     retrieves the data provider or ecosystem information, and writes the data to a file.
     """
-    try:
-        data = await request.json()
-    except : 
+    fileFormat ="text"
+    if (request.headers.get("Content-Type") == "application/json"):
+        try:
+            data = await request.json()
+            fileFormat ="json"
+        except : 
+            data = await request.body()
+    elif (request.headers.get("Content-Type") == "application/x-www-form-urlencoded"):
+        try:
+            data = await request.form()
+            data = dict(data)
+            fileFormat ="xml"
+        except : 
+            data = await request.body()
+    else:
         data = await request.body()
     data = decodeDictionary(data)
     #print(f"Received data: {data}")
@@ -217,31 +230,31 @@ async def read_input(request: Request, response: Response, headers: Annotated[Pd
     provider_name = pdc_service.get_provider_name_from_contract(pdc_contract)
     print(f"Provider name: {provider_name}")
     os.makedirs(os.path.dirname(get_folder_path("pdc")), exist_ok=True)
-    connection = await dataset_service.find_file_connection(folder = get_folder_path("pdc"), name = provider_name)
+    connection = await dataset_service.find_file_connection(
+        folder=get_folder_path("pdc"),
+        name=f"{provider_name}_{pdc_contract.id}" if provider_name else str(pdc_contract.id)
+    )
     payload = {"data": data, "path": "pdc"}
     
-    
+    serialized_data = serialize_data(data, fileFormat)
+    file_ext = ".json" if fileFormat == "json" else ".xml" if fileFormat == "xml" else ".txt"
+
     if connection.ifExist == "append" and connection.filePath and os.path.exists(connection.filePath):
-        # Append to existing file
         complete_filepath = connection.filePath
         print(f" before Appending to existing file: {complete_filepath}")
-        write_input_append(complete_filepath, json.dumps(data))
+        write_input_append(complete_filepath, serialized_data)
         print(f"Appended data to existing file: {complete_filepath}")
     else:
-        # Create new file or replace existing one
-        filename_prefix = f"{provider_name}_" if provider_name else ""
+        filename_prefix = f"{provider_name}_{pdc_contract.id}_" if provider_name else "{pdc_contract.id}_"
         folder_path = connection.folder if connection.folder else get_folder_path("pdc")
-        complete_filepath = f"{folder_path}{filename_prefix}{str(time.time())}.json"
-        
-        # Remove old file if it exists and we're not appending
+        complete_filepath = f"{folder_path}{filename_prefix}{str(time.time())}{file_ext}"
         if connection.filePath and os.path.exists(connection.filePath):
             try:
                 os.remove(connection.filePath)
                 print(f"Removed old file: {connection.filePath}")
             except OSError as e:
                 print(f"Error removing old file {connection.filePath}: {e}")
-        
-        write_input(complete_filepath, json.dumps(data))
+        write_input(complete_filepath, serialized_data)
         connection.filePath = complete_filepath
         connection.ifExist = "replace"
         print(f"Created new file: {complete_filepath}")
@@ -667,3 +680,22 @@ def get_serviceoffering_by_id(id: str, connection):
     url = conf["catalogUri"] + "catalog/serviceofferings/" + id
     return pdc_service.fetch_service_offering(url)
 
+def serialize_data(data, fileFormat):
+    if fileFormat == "json":
+        return json.dumps(data, indent=2)
+    elif fileFormat == "xml":
+        # if XML string return or convert
+        if isinstance(data, str):
+            return data
+        elif isinstance(data, dict):
+            # Simple dict to XML conversion
+            root = ET.Element("root")
+            for k, v in data.items():
+                child = ET.SubElement(root, k)
+                child.text = str(v)
+            return ET.tostring(root, encoding="unicode")
+        else:
+            return str(data)
+    else:
+        # raw text
+        return data.decode() if isinstance(data, bytes) else str(data)

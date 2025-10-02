@@ -859,6 +859,9 @@ def getFileContent(connection: FileDataset, pagination: Pagination = None) -> Fi
                 data = AvroFile(connection.filePath)  
             elif connection.filePath.endswith('.xml'):
                 data = XMLFile(connection.filePath)
+            elif connection.filePath.endswith('.txt'):
+                with open(connection.filePath, 'r', encoding='utf-8') as f:
+                    data = [{"text": f.read()}]    
             elif any(connection.filePath.lower().endswith(ext) for ext in [
                 '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp', '.svg',
                 '.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma',
