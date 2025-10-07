@@ -214,16 +214,20 @@ async def read_input(request: Request, response: Response, headers: Annotated[Pd
             data = await request.json()
             fileFormat ="json"
         except : 
-            data = await request.body()
+            form  = await request.body()
     elif (request.headers.get("Content-Type") == "application/x-www-form-urlencoded"):
         try:
-            data = await request.form()
-            data = dict(data)
+            #data = await request.form() 
+            #for now process this  like a raw text
+            form  = await request.body()
+            data = form.decode()
             fileFormat ="xml"
         except : 
             data = await request.body()
     else:
-        data = await request.body()
+        #byte with encode or raw text
+        form  = await request.body()
+        data = form.decode()
     data = decodeDictionary(data)
     #print(f"Received data: {data}")
     
