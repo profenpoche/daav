@@ -53,6 +53,30 @@ class Settings(BaseSettings):
     security_time_window: int = Field(default=60, description="Time window in seconds")
     security_enabled: bool = Field(default=True, description="Enable security middleware")
     
+    # Authentication & Authorization
+    allow_public_registration: bool = Field(
+        default=False, 
+        description="Allow public user registration. If False, only admins can create users"
+    )
+    
+    # JWT Configuration
+    jwt_secret_key: str = Field(
+        default="your-secret-key-change-this-in-production-please-min-32-chars",
+        description="Secret key for JWT token encoding/decoding. CHANGE THIS IN PRODUCTION!"
+    )
+    jwt_algorithm: str = Field(
+        default="HS256",
+        description="Algorithm used for JWT token encoding"
+    )
+    jwt_access_token_expire_minutes: int = Field(
+        default=60,
+        description="Access token expiration time in minutes"
+    )
+    jwt_refresh_token_expire_days: int = Field(
+        default=90,
+        description="Refresh token expiration time in days"
+    )
+    
     # File uploads
     upload_dir: str = "uploads"
     max_file_size: Union[int, str] = 100 * 1024 * 1024  # 100MB
@@ -109,6 +133,25 @@ class Settings(BaseSettings):
     @classmethod
     def parse_log_backup_count(cls, v):
         """Parse log backup count from string to int"""
+        if isinstance(v, str):
+            return int(v)
+        return v
+    
+    @field_validator('jwt_secret_key')
+    @classmethod
+    def validate_jwt_secret_key(cls, v):
+        """Validate JWT secret key length for security"""
+        if v == "your-secret-key-change-this-in-production-please-min-32-chars":
+            import logging
+            logging.warning("⚠️  Using default JWT_SECRET_KEY - CHANGE THIS IN PRODUCTION!")
+        elif len(v) < 32:
+            raise ValueError('JWT_SECRET_KEY must be at least 32 characters long for security')
+        return v
+    
+    @field_validator('jwt_access_token_expire_minutes', 'jwt_refresh_token_expire_days', mode='before')
+    @classmethod
+    def parse_jwt_expiration(cls, v):
+        """Parse JWT expiration times from string to int"""
         if isinstance(v, str):
             return int(v)
         return v

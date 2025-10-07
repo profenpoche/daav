@@ -71,6 +71,10 @@ class IProject(Document):
     created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
     
+    # User ownership and sharing
+    owner_id: Optional[str] = Field(default=None, description="ID of the user who owns this workflow")
+    shared_with: List[str] = Field(default_factory=list, description="List of user IDs this workflow is shared with")
+    
 
     @field_validator('id', mode='before')
     @classmethod
@@ -99,7 +103,8 @@ class IProject(Document):
         indexes = [
             "name",
             "created_at",
-            "updated_at"
+            "updated_at",
+            "owner_id"
         ]
         
     @model_serializer(mode='wrap')
