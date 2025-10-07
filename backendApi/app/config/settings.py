@@ -45,9 +45,6 @@ class Settings(BaseSettings):
     # CORS - peut être une string ou une liste
     cors_origins: Union[List[str], str] = ["http://localhost:4200", "http://127.0.0.1:4200"]
     
-    # Security
-    secret_key: Optional[str] = None
-    
     # Security middleware settings
     security_rate_limit: int = Field(default=100, description="Max requests per time window")
     security_time_window: int = Field(default=60, description="Time window in seconds")
