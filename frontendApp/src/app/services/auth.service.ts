@@ -259,6 +259,59 @@ export class AuthService {
     }, 60000); // 1 minute
   }
 
+  // ==================== ADMIN METHODS ====================
+
+  /**
+   * Get all users (Admin only)
+   */
+  getAllUsers(): Observable<User[]> {
+    return this.http.get<User[]>(`${this.baseService.urlBack}/auth/users`)
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Get user by ID (Admin only)
+   */
+  getUserById(userId: string): Observable<User> {
+    return this.http.get<User>(`${this.baseService.urlBack}/auth/users/${userId}`)
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Delete user (Admin only)
+   */
+  deleteUser(userId: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.baseService.urlBack}/auth/users/${userId}`)
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Deactivate user (Admin only)
+   */
+  deactivateUser(userId: string, reason?: string): Observable<any> {
+    const body = reason ? { reason } : {};
+    return this.http.post(`${this.baseService.urlBack}/auth/users/${userId}/deactivate`, body)
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Activate user (Admin only)
+   */
+  activateUser(userId: string): Observable<any> {
+    return this.http.post(`${this.baseService.urlBack}/auth/users/${userId}/activate`, {})
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
   /**
    * Handle HTTP errors
    */

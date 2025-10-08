@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ModalController, ToastController, AlertController, LoadingController } from '@ionic/angular';
+import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { User } from '../../models/auth.models';
 
@@ -15,13 +16,20 @@ export class UserProfileComponent implements OnInit {
   changePasswordForm!: FormGroup;
   loading = false;
 
+  // Admin user management
+  showUserManagement = false;
+  allUsers: User[] = [];
+  loadingUsers = false;
+  selectedUser: User | null = null;
+
   constructor(
     private formBuilder: FormBuilder,
     private authService: AuthService,
     private modalController: ModalController,
     private toastController: ToastController,
     private alertController: AlertController,
-    private loadingController: LoadingController
+    private loadingController: LoadingController,
+    private router: Router
   ) {}
 
   ngOnInit() {
@@ -234,5 +242,156 @@ export class UserProfileComponent implements OnInit {
       hour: '2-digit',
       minute: '2-digit'
     });
+  }
+
+  /**
+   * Check if current user is admin
+   */
+  isAdmin(): boolean {
+    return this.user?.role === 'admin';
+  }
+
+  // ==================== ADMIN USER MANAGEMENT ====================
+
+  /**
+   * Toggle user management section
+   */
+  async toggleUserManagement() {
+    this.showUserManagement = !this.showUserManagement;
+
+    if (this.showUserManagement && this.allUsers.length === 0) {
+      await this.loadAllUsers();
+    }
+  }
+
+  /**
+   * Load all users
+   */
+  async loadAllUsers() {
+    this.loadingUsers = true;
+
+    this.authService.getAllUsers().subscribe({
+      next: (users) => {
+        this.allUsers = users;
+        this.loadingUsers = false;
+      },
+      error: async (error) => {
+        this.loadingUsers = false;
+        await this.showToast('Failed to load users: ' + error.message, 'danger');
+      }
+    });
+  }
+
+  /**
+   * Deactivate user
+   */
+  async deactivateUser(user: User) {
+    const alert = await this.alertController.create({
+      header: 'Deactivate User',
+      message: `Are you sure you want to deactivate ${user.username}?`,
+      inputs: [
+        {
+          name: 'reason',
+          type: 'textarea',
+          placeholder: 'Reason for deactivation (optional)'
+        }
+      ],
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel'
+        },
+        {
+          text: 'Deactivate',
+          role: 'destructive',
+          handler: (data) => {
+            this.authService.deactivateUser(user.id, data.reason).subscribe({
+              next: async () => {
+                await this.showToast(`User ${user.username} deactivated successfully`, 'success');
+                await this.loadAllUsers();
+              },
+              error: async (error) => {
+                await this.showToast('Failed to deactivate user: ' + error.message, 'danger');
+              }
+            });
+          }
+        }
+      ]
+    });
+
+    await alert.present();
+  }
+
+  /**
+   * Activate user
+   */
+  async activateUser(user: User) {
+    const alert = await this.alertController.create({
+      header: 'Activate User',
+      message: `Are you sure you want to activate ${user.username}?`,
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel'
+        },
+        {
+          text: 'Activate',
+          handler: () => {
+            this.authService.activateUser(user.id).subscribe({
+              next: async () => {
+                await this.showToast(`User ${user.username} activated successfully`, 'success');
+                await this.loadAllUsers();
+              },
+              error: async (error) => {
+                await this.showToast('Failed to activate user: ' + error.message, 'danger');
+              }
+            });
+          }
+        }
+      ]
+    });
+
+    await alert.present();
+  }
+
+  /**
+   * Delete user
+   */
+  async deleteUser(user: User) {
+    const alert = await this.alertController.create({
+      header: 'Delete User',
+      message: `Are you sure you want to permanently delete ${user.username}? This action cannot be undone.`,
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel'
+        },
+        {
+          text: 'Delete',
+          role: 'destructive',
+          handler: () => {
+            this.authService.deleteUser(user.id).subscribe({
+              next: async () => {
+                await this.showToast(`User ${user.username} deleted successfully`, 'success');
+                await this.loadAllUsers();
+              },
+              error: async (error) => {
+                await this.showToast('Failed to delete user: ' + error.message, 'danger');
+              }
+            });
+          }
+        }
+      ]
+    });
+
+    await alert.present();
+  }
+
+  /**
+   * Navigate to create user (register page)
+   */
+  async createNewUser() {
+    await this.modalController.dismiss();
+    this.router.navigate(['/register']);
   }
 }

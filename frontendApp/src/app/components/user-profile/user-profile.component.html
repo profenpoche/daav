@@ -156,6 +156,125 @@
       </ion-card-content>
     </ion-card>
 
+    <!-- Admin User Management Section -->
+    <ion-card class="action-card" *ngIf="isAdmin()">
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="people-outline"></ion-icon>
+          User Management
+        </ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <ion-button
+          expand="block"
+          fill="outline"
+          (click)="toggleUserManagement()"
+          [color]="showUserManagement ? 'medium' : 'secondary'"
+        >
+          <ion-icon [name]="showUserManagement ? 'chevron-up-outline' : 'people-outline'" slot="start"></ion-icon>
+          {{ showUserManagement ? 'Hide Users' : 'Manage Users' }}
+        </ion-button>
+
+        <!-- User Management Content -->
+        <div class="user-management-section" *ngIf="showUserManagement">
+          <!-- Create New User Button -->
+          <ion-button
+            expand="block"
+            color="primary"
+            (click)="createNewUser()"
+            class="create-user-btn"
+          >
+            <ion-icon name="person-add-outline" slot="start"></ion-icon>
+            Create New User
+          </ion-button>
+
+          <!-- Loading State -->
+          <div class="loading-users" *ngIf="loadingUsers">
+            <ion-spinner name="crescent"></ion-spinner>
+            <p>Loading users...</p>
+          </div>
+
+          <!-- Users List -->
+          <div class="users-list" *ngIf="!loadingUsers && allUsers.length > 0">
+            <ion-card *ngFor="let managedUser of allUsers" class="user-item-card">
+              <ion-card-content>
+                <div class="user-item-header">
+                  <div class="user-info">
+                    <ion-icon name="person-circle-outline" class="user-icon"></ion-icon>
+                    <div class="user-details">
+                      <h3>{{ managedUser.full_name }}</h3>
+                      <p class="username">{{ '@' + managedUser.username }}</p>
+                      <p class="email">{{ managedUser.email }}</p>
+                    </div>
+                  </div>
+                  <div class="user-badges">
+                    <ion-badge [color]="managedUser.role === 'admin' ? 'danger' : 'primary'">
+                      {{ managedUser.role | uppercase }}
+                    </ion-badge>
+                    <ion-badge [color]="managedUser.is_active ? 'success' : 'warning'">
+                      {{ managedUser.is_active ? 'ACTIVE' : 'INACTIVE' }}
+                    </ion-badge>
+                  </div>
+                </div>
+
+                <div class="user-meta">
+                  <p>
+                    <ion-icon name="calendar-outline"></ion-icon>
+                    Joined: {{ getFormattedDate(managedUser.created_at) }}
+                  </p>
+                  <p>
+                    <ion-icon name="time-outline"></ion-icon>
+                    Last login: {{ getFormattedDate(managedUser.last_login) }}
+                  </p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="user-actions" *ngIf="managedUser.id !== user.id">
+                  <ion-button
+                    size="small"
+                    fill="outline"
+                    [color]="managedUser.is_active ? 'warning' : 'success'"
+                    (click)="managedUser.is_active ? deactivateUser(managedUser) : activateUser(managedUser)"
+                  >
+                    <ion-icon
+                      [name]="managedUser.is_active ? 'eye-off-outline' : 'eye-outline'"
+                      slot="start"
+                    ></ion-icon>
+                    {{ managedUser.is_active ? 'Deactivate' : 'Activate' }}
+                  </ion-button>
+
+                  <ion-button
+                    size="small"
+                    fill="outline"
+                    color="danger"
+                    (click)="deleteUser(managedUser)"
+                  >
+                    <ion-icon name="trash-outline" slot="start"></ion-icon>
+                    Delete
+                  </ion-button>
+                </div>
+
+                <!-- Can't modify self -->
+                <div class="user-actions" *ngIf="managedUser.id === user.id">
+                  <ion-note color="medium">
+                    <ion-icon name="lock-closed-outline"></ion-icon>
+                    You cannot modify your own account from here
+                  </ion-note>
+                </div>
+              </ion-card-content>
+            </ion-card>
+          </div>
+
+          <!-- Empty State -->
+          <div class="empty-state" *ngIf="!loadingUsers && allUsers.length === 0">
+            <ion-icon name="people-outline" class="empty-icon"></ion-icon>
+            <p>No users found</p>
+          </div>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
     <!-- Actions Card -->
     <ion-card class="action-card">
       <ion-card-header>
@@ -198,3 +317,4 @@
     <p>Loading user profile...</p>
   </div>
 </ion-content>
+

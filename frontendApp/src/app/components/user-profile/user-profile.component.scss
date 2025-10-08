@@ -138,6 +138,181 @@
   }
 }
 
+// User Management Section
+.user-management-section {
+  margin-top: 1.5rem;
+  animation: slideDown 0.3s ease-out;
+
+  .create-user-btn {
+    margin-bottom: 1.5rem;
+    --border-radius: 8px;
+    height: 44px;
+    font-weight: 600;
+  }
+
+  .loading-users {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    text-align: center;
+
+    ion-spinner {
+      margin-bottom: 1rem;
+    }
+
+    p {
+      color: var(--ion-color-medium);
+      font-size: 0.95rem;
+    }
+  }
+
+  .users-list {
+    .user-item-card {
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+      ion-card-content {
+        padding: 1rem;
+
+        .user-item-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 1rem;
+
+          .user-info {
+            display: flex;
+            gap: 1rem;
+            flex: 1;
+
+            .user-icon {
+              font-size: 3rem;
+              color: var(--ion-color-primary);
+              flex-shrink: 0;
+            }
+
+            .user-details {
+              flex: 1;
+              min-width: 0;
+
+              h3 {
+                margin: 0;
+                font-size: 1.125rem;
+                font-weight: 600;
+                color: var(--ion-color-dark);
+              }
+
+              .username {
+                margin: 0.25rem 0;
+                font-size: 0.9rem;
+                color: var(--ion-color-primary);
+                font-weight: 500;
+              }
+
+              .email {
+                margin: 0.25rem 0 0 0;
+                font-size: 0.85rem;
+                color: var(--ion-color-medium);
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+            }
+          }
+
+          .user-badges {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            flex-shrink: 0;
+
+            ion-badge {
+              font-size: 0.7rem;
+              padding: 0.25rem 0.5rem;
+            }
+          }
+        }
+
+        .user-meta {
+          padding: 0.75rem;
+          background: var(--ion-color-light);
+          border-radius: 8px;
+          margin-bottom: 1rem;
+
+          p {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0.25rem 0;
+            font-size: 0.85rem;
+            color: var(--ion-color-medium);
+
+            ion-icon {
+              font-size: 1rem;
+            }
+
+            &:first-child {
+              margin-top: 0;
+            }
+
+            &:last-child {
+              margin-bottom: 0;
+            }
+          }
+        }
+
+        .user-actions {
+          display: flex;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+
+          ion-button {
+            flex: 1;
+            min-width: 120px;
+            --border-radius: 8px;
+            height: 36px;
+            font-size: 0.85rem;
+          }
+
+          ion-note {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            font-size: 0.875rem;
+            width: 100%;
+
+            ion-icon {
+              font-size: 1rem;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    text-align: center;
+
+    .empty-icon {
+      font-size: 4rem;
+      color: var(--ion-color-medium);
+      margin-bottom: 1rem;
+    }
+
+    p {
+      color: var(--ion-color-medium);
+      font-size: 0.95rem;
+    }
+  }
+}
+
 // Loading State
 .loading-state {
   display: flex;
@@ -189,6 +364,30 @@
       }
     }
   }
+
+  .user-management-section {
+    .users-list {
+      .user-item-card {
+        ion-card-content {
+          .user-item-header {
+            flex-direction: column;
+            gap: 1rem;
+
+            .user-badges {
+              flex-direction: row;
+              width: 100%;
+            }
+          }
+
+          .user-actions {
+            ion-button {
+              flex: 1 1 100%;
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 // Dark mode support
@@ -209,6 +408,28 @@
     form {
       .input-item {
         --background: var(--ion-color-dark);
+      }
+    }
+  }
+
+  .user-management-section {
+    .users-list {
+      .user-item-card {
+        ion-card-content {
+          .user-item-header {
+            .user-info {
+              .user-details {
+                h3 {
+                  color: var(--ion-color-light);
+                }
+              }
+            }
+          }
+
+          .user-meta {
+            background: var(--ion-color-dark);
+          }
+        }
       }
     }
   }

@@ -19,16 +19,8 @@ export class RegisterPage implements OnInit {
     private router: Router,
     private toastController: ToastController,
     private loadingController: LoadingController
-  ) {}
-
-  async ngOnInit() {
-    // try to restore session this page is not protected by a guard and not try to load user automatically
-    // because some restriction (e.g. .env config) can need admin user to create account we need to restore user.
-    const hasTokens = await this.authService.isAuthenticated();
-    if (hasTokens && !this.authService.currentUserValue) {
-      await this.authService.loadCurrentUser();
-    }
-
+  ) {
+    // Initialize form synchronously to avoid template errors
     this.registerForm = this.formBuilder.group({
       username: ['', [
         Validators.required,
@@ -59,6 +51,15 @@ export class RegisterPage implements OnInit {
     }, {
       validators: this.passwordMatchValidator
     });
+  }
+
+  async ngOnInit() {
+    // try to restore session this page is not protected by a guard and not try to load user automatically
+    // because some restriction (e.g. .env config) can need admin user to create account we need to restore user.
+    const hasTokens = await this.authService.isAuthenticated();
+    if (hasTokens && !this.authService.currentUserValue) {
+      await this.authService.loadCurrentUser();
+    }
   }
 
   /**
