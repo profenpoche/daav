@@ -74,6 +74,46 @@ class Settings(BaseSettings):
         description="Refresh token expiration time in days"
     )
     
+    # Email Configuration (SMTP)
+    smtp_host: str = Field(
+        default="smtp.gmail.com",
+        description="SMTP server host"
+    )
+    smtp_port: int = Field(
+        default=587,
+        description="SMTP server port"
+    )
+    smtp_username: Optional[str] = Field(
+        default=None,
+        description="SMTP username (email address)"
+    )
+    smtp_password: Optional[str] = Field(
+        default=None,
+        description="SMTP password or app password"
+    )
+    smtp_from_email: Optional[str] = Field(
+        default=None,
+        description="Email address to send from"
+    )
+    smtp_from_name: str = Field(
+        default="DAAV Application",
+        description="Sender name for emails"
+    )
+    smtp_use_tls: bool = Field(
+        default=True,
+        description="Use TLS for SMTP connection"
+    )
+    
+    # Password Reset Configuration
+    password_reset_token_expire_hours: int = Field(
+        default=1,
+        description="Password reset token expiration time in hours"
+    )
+    frontend_url: str = Field(
+        default="http://localhost:4200",
+        description="Frontend URL for password reset links"
+    )
+    
     # File uploads
     upload_dir: str = "uploads"
     max_file_size: Union[int, str] = 100 * 1024 * 1024  # 100MB

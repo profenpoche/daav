@@ -71,3 +71,9 @@ Thumbs.db
 secrets/*
 backendApi/app/config.ini
 backendApi/app/ptx/pdc/*
+backendApi/AUTH_DOCUMENTATION.md
+backendApi/AUTH_README.md
+backendApi/QUICK_START_AUTH.md
+backendApi/USER_ACTIVATION_API.md
+backendApi/BACKEND_PASSWORD_RESET_COMPLETE.md
+backendApi/PASSWORD_RESET_API.md

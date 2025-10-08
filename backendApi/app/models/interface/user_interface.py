@@ -165,3 +165,26 @@ class UserConfigUpdate(BaseModel):
     
     model_config = ConfigDict(extra="allow")
 
+
+class PasswordResetToken(Document):
+    """Password reset token model"""
+    id: Optional[str] = Field(default=None, alias="_id")
+    user_id: str = Field(..., description="User ID this token belongs to")
+    token: str = Field(..., description="Reset token (hashed)")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime = Field(..., description="Token expiration timestamp")
+    used: bool = Field(default=False, description="Whether token has been used")
+    
+    @before_event(Insert)
+    async def generate_string_id(self):
+        """Generate string ID before insertion"""
+        if not self.id:
+            self.id = str(ObjectId())
+    
+    class Settings:
+        name = "password_reset_tokens"
+        indexes = [
+            "user_id",
+            "token",
+            "expires_at"
+        ]

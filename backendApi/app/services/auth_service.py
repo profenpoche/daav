@@ -1,18 +1,22 @@
 import logging
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 from fastapi import HTTPException, status
 
-from app.models.interface.user_interface import User
+from app.models.interface.user_interface import User, PasswordResetToken
 from app.models.interface.auth_interface import Token, TokenData
 from app.utils.auth_utils import (
     verify_password,
+    get_password_hash,
     create_access_token,
     create_refresh_token,
     decode_token,
     verify_token_type
 )
 from app.services.user_service import UserService
+from app.services.email_service import EmailService
+from app.config.settings import settings
 from app.utils.singleton import SingletonMeta
 
 logger = logging.getLogger(__name__)
@@ -23,6 +27,7 @@ class AuthService(metaclass=SingletonMeta):
     
     def __init__(self):
         self.user_service = UserService()
+        self.email_service = EmailService()
         logger.info("AuthService initialized")
     
     async def authenticate_user(self, username: str, password: str) -> Optional[User]:
@@ -252,3 +257,144 @@ class AuthService(metaclass=SingletonMeta):
             )
         
         return True
+    
+    async def forgot_password(self, email: str) -> bool:
+        """
+        Initiate password reset process
+        
+        Args:
+            email: User email address
+            
+        Returns:
+            bool: True if reset email sent (always returns True to prevent email enumeration)
+        """
+        try:
+            # Find user by email
+            user = await self.user_service.get_user_by_email(email)
+            
+            if not user:
+                # Don't reveal if email exists or not (security)
+                logger.warning(f"Password reset requested for non-existent email: {email}")
+                return True
+            
+            if not user.is_active:
+                logger.warning(f"Password reset requested for inactive account: {email}")
+                return True
+            
+            # Generate reset token
+            reset_token = secrets.token_urlsafe(32)
+            
+            # Hash token before storing
+            hashed_token = get_password_hash(reset_token)
+            
+            # Calculate expiration
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.password_reset_token_expire_hours)
+            
+            # Delete any existing reset tokens for this user
+            await PasswordResetToken.find(PasswordResetToken.user_id == user.id).delete()
+            
+            # Create new reset token record
+            reset_token_doc = PasswordResetToken(
+                user_id=user.id,
+                token=hashed_token,
+                expires_at=expires_at,
+                used=False
+            )
+            await reset_token_doc.insert()
+            
+            # Send reset email
+            email_sent = await self.email_service.send_password_reset_email(
+                to_email=user.email,
+                username=user.username,
+                reset_token=reset_token  # Send plain token in email, not hashed
+            )
+            
+            if email_sent:
+                logger.info(f"Password reset email sent to: {email}")
+            else:
+                logger.error(f"Failed to send password reset email to: {email}")
+            
+            return True
+        
+        except Exception as e:
+            logger.error(f"Error in forgot_password: {e}", exc_info=True)
+            # Always return True to prevent email enumeration
+            return True
+    
+    async def reset_password(self, token: str, new_password: str) -> bool:
+        """
+        Reset user password using reset token
+        
+        Args:
+            token: Password reset token from email
+            new_password: New password
+            
+        Returns:
+            bool: True if password reset successful
+            
+        Raises:
+            HTTPException: If token is invalid or expired
+        """
+        try:
+            # Find all active (unused) reset tokens
+            reset_tokens = await PasswordResetToken.find(
+                PasswordResetToken.used == False
+            ).to_list()
+            
+            # Find matching token (compare hashes)
+            matching_token = None
+            for token_doc in reset_tokens:
+                if verify_password(token, token_doc.token):
+                    matching_token = token_doc
+                    break
+            
+            if not matching_token:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid or expired reset token"
+                )
+            
+            # Check if token is expired
+            if datetime.now(timezone.utc) > matching_token.expires_at:
+                await matching_token.delete()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Reset token has expired. Please request a new one."
+                )
+            
+            # Get user
+            user = await self.user_service.get_user_by_id(matching_token.user_id)
+            
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+            
+            if not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="User account is inactive"
+                )
+            
+            # Update password
+            user.hashed_password = get_password_hash(new_password)
+            user.updated_at = datetime.now(timezone.utc)
+            await user.save()
+            
+            # Mark token as used
+            matching_token.used = True
+            await matching_token.save()
+            
+            logger.info(f"Password reset successful for user: {user.username}")
+            
+            return True
+        
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error resetting password: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to reset password"
+            )

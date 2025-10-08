@@ -12,7 +12,8 @@ from app.models.interface.user_interface import (
 )
 from app.models.interface.auth_interface import (
     Token, LoginRequest, RefreshTokenRequest, ChangePasswordRequest,
-    ShareResourceRequest, UnshareResourceRequest
+    ShareResourceRequest, UnshareResourceRequest,
+    ForgotPasswordRequest, ResetPasswordRequest
 )
 from app.services.auth_service import AuthService
 from app.services.user_service import UserService
@@ -115,6 +116,61 @@ async def refresh_token(refresh_data: RefreshTokenRequest):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not refresh token"
+        )
+
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+async def forgot_password(request: ForgotPasswordRequest):
+    """
+    Request password reset
+    
+    Sends a password reset email to the user if the email exists.
+    Always returns success to prevent email enumeration.
+    
+    - **email**: User's email address
+    
+    **Response:** Always returns success message for security
+    """
+    try:
+        await auth_service.forgot_password(request.email)
+        return {
+            "message": "If the email exists, a password reset link has been sent. Please check your inbox."
+        }
+    except Exception as e:
+        logger.error(f"Forgot password error: {e}", exc_info=True)
+        # Still return success to prevent email enumeration
+        return {
+            "message": "If the email exists, a password reset link has been sent. Please check your inbox."
+        }
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password(request: ResetPasswordRequest):
+    """
+    Reset password using reset token
+    
+    Use the token received via email to set a new password.
+    
+    - **token**: Password reset token from email
+    - **new_password**: New password (min 8 chars, must include uppercase, lowercase, and special character)
+    
+    **Raises:**
+    - **400**: Invalid or expired token
+    - **404**: User not found
+    """
+    try:
+        success = await auth_service.reset_password(request.token, request.new_password)
+        if success:
+            return {
+                "message": "Password has been reset successfully. You can now login with your new password."
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Reset password error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to reset password"
         )
 
 

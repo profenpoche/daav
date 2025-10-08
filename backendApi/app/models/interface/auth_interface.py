@@ -58,3 +58,14 @@ class UnshareResourceRequest(BaseModel):
     resource_id: str = Field(..., description="ID of the resource to unshare")
     target_user_id: str = Field(..., description="ID of the user to unshare from")
     resource_type: str = Field(..., pattern="^(dataset|workflow)$", description="Type of resource: dataset or workflow")
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Forgot password request schema"""
+    email: EmailStr = Field(..., description="Email address to send password reset link")
+
+
+class ResetPasswordRequest(BaseModel):
+    """Reset password request schema"""
+    token: str = Field(..., description="Password reset token from email")
+    new_password: str = Field(..., min_length=8, max_length=100, description="New password")
