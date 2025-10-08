@@ -15,7 +15,7 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatAutocompleteModule } from "@angular/material/autocomplete";
 import {MatCheckboxModule} from '@angular/material/checkbox';
 import { InputAutoCompleteWidgetComponent } from "./components/widgets/auto-complete-widget/input-auto-complete-widget.component";
-import { FormsModule } from "@angular/forms";
+import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { MatInputModule } from "@angular/material/input";
 import { CheckboxWidgetComponent } from "./components/widgets/checkbox-widget/checkbox-widget.component";
 import { DataFilterWidgetComponent } from "./components/widgets/data-filter-widget/data-filter-widget.component";
@@ -26,10 +26,11 @@ import { TextDisplayWidgetComponent } from "./components/widgets/text-display-wi
 import { JsonEditorComponent, JsonEditorOptions } from 'ang-jsoneditor';
 import { CdkAccordionModule } from "@angular/cdk/accordion";
 import { DashboardsModule } from "./components/dashboards/dashboards.module";
+import { UserProfileComponent } from "./components/user-profile/user-profile.component";
 
 @NgModule({
-    declarations: [TextDisplayWidgetComponent,CheckboxWidgetComponent,InputAutoCompleteWidgetComponent,ButtonWidgetComponent,SelectWidgetComponent,NodeLoaderWidgetComponent,DataMapperWidgetComponent,HasDatasetsPipe, DataFilterWidgetComponent,JsonInputsWidgetComponent],
-    exports: [DataMapperModule],
-    imports:[FormsModule,MatAutocompleteModule,MatTableModule,DataMapperModule, DataFilterModule,MatSelectModule,MatFormFieldModule,CommonModule,IonicModule,MatIconModule,MatButtonModule,MatInputModule,MatCheckboxModule, NgxAngularQueryBuilderModule,JsonEditorComponent,CdkAccordionModule],
+    declarations: [TextDisplayWidgetComponent,CheckboxWidgetComponent,InputAutoCompleteWidgetComponent,ButtonWidgetComponent,SelectWidgetComponent,NodeLoaderWidgetComponent,DataMapperWidgetComponent,HasDatasetsPipe, DataFilterWidgetComponent,JsonInputsWidgetComponent, UserProfileComponent],
+    exports: [DataMapperModule, UserProfileComponent],
+    imports:[FormsModule,ReactiveFormsModule,MatAutocompleteModule,MatTableModule,DataMapperModule, DataFilterModule,MatSelectModule,MatFormFieldModule,CommonModule,IonicModule,MatIconModule,MatButtonModule,MatInputModule,MatCheckboxModule, NgxAngularQueryBuilderModule,JsonEditorComponent,CdkAccordionModule],
 })
 export class ComponentsModule {}

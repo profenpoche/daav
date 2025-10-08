@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict, model_serializer
 from beanie import Document, before_event, Insert
@@ -24,8 +24,8 @@ class User(Document):
     role: UserRole = Field(default=UserRole.USER, description="User role (admin or user)")
     is_active: bool = Field(default=True, description="Account active status")
     last_login: Optional[datetime] = Field(default=None, description="Last login timestamp")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Configuration per user
     config: UserConfig = Field(default_factory=UserConfig, description="User-specific configuration")
@@ -171,9 +171,20 @@ class PasswordResetToken(Document):
     id: Optional[str] = Field(default=None, alias="_id")
     user_id: str = Field(..., description="User ID this token belongs to")
     token: str = Field(..., description="Reset token (hashed)")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: datetime = Field(..., description="Token expiration timestamp")
     used: bool = Field(default=False, description="Whether token has been used")
+    
+    @field_validator('expires_at', mode='before')
+    @classmethod
+    def ensure_expires_at_timezone_aware(cls, v):
+        """Ensure expires_at is timezone-aware (UTC)"""
+        if v is None:
+            return v
+        if isinstance(v, datetime) and v.tzinfo is None:
+            # If naive, assume UTC and add timezone info
+            return v.replace(tzinfo=timezone.utc)
+        return v
     
     @before_event(Insert)
     async def generate_string_id(self):

@@ -12,7 +12,8 @@ from app.utils.auth_utils import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    verify_token_type
+    verify_token_type,
+    ensure_utc_aware
 )
 from app.services.user_service import UserService
 from app.services.email_service import EmailService
@@ -355,7 +356,9 @@ class AuthService(metaclass=SingletonMeta):
                 )
             
             # Check if token is expired
-            if datetime.now(timezone.utc) > matching_token.expires_at:
+            # Ensure both datetimes are timezone-aware for comparison
+            expires_at_aware = ensure_utc_aware(matching_token.expires_at)
+            if datetime.now(timezone.utc) > expires_at_aware:
                 await matching_token.delete()
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

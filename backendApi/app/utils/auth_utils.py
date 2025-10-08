@@ -188,3 +188,34 @@ def validate_password_strength(password: str) -> bool:
     if not any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?/' for c in password):
         raise ValueError('Password must contain at least one special character')
     return True
+
+
+def ensure_utc_aware(dt: datetime) -> datetime:
+    """
+    Ensure datetime is UTC timezone-aware.
+    
+    This function handles the common issue of comparing timezone-naive and 
+    timezone-aware datetimes. If the datetime is naive (no timezone info),
+    it assumes it's in UTC and adds the timezone information.
+    
+    Args:
+        dt: The datetime to convert
+        
+    Returns:
+        datetime: A timezone-aware datetime in UTC
+        
+    Example:
+        >>> naive_dt = datetime(2025, 1, 1, 12, 0, 0)
+        >>> aware_dt = ensure_utc_aware(naive_dt)
+        >>> aware_dt.tzinfo
+        datetime.timezone.utc
+    """
+    if dt is None:
+        return None
+    
+    if dt.tzinfo is None:
+        # Datetime is naive, assume it's UTC and add timezone info
+        return dt.replace(tzinfo=timezone.utc)
+    
+    # Datetime is already aware, convert to UTC if needed
+    return dt.astimezone(timezone.utc)

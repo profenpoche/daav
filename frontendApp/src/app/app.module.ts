@@ -7,7 +7,7 @@ import { IonicModule, IonicRouteStrategy } from '@ionic/angular';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { HttpClientJsonpModule, HttpClientModule } from '@angular/common/http';
+import { HttpClientJsonpModule, HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { ComponentsModule } from './components-module';
 import { ReteModule } from 'rete-angular-plugin/16';
 import { TransformNodeComponent } from './components/nodes/transform/nodes.component';
@@ -18,12 +18,27 @@ import { StatusComponentComponent } from './components/widgets/status-component/
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { NgxAngularQueryBuilderModule } from "ngx-angular-query-builder";
 import { CdkAccordionModule } from '@angular/cdk/accordion';
+import { AuthInterceptor } from './interceptors/auth.interceptor';
+import { ErrorInterceptor } from './interceptors/error.interceptor';
 
 
 @NgModule({
   declarations: [AppComponent, TransformNodeComponent, OutputNodeComponent, InputNodeComponent,StatusComponentComponent],
   imports: [BrowserModule, IonicModule.forRoot(),ReteModule, BrowserAnimationsModule,AppRoutingModule, HttpClientModule, HttpClientJsonpModule, ComponentsModule, IonicStorageModule.forRoot(), MatTooltipModule, NgxAngularQueryBuilderModule],
-  providers: [{ provide: RouteReuseStrategy, useClass: IonicRouteStrategy }],
+  providers: [
+    { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
+    // Register HTTP Interceptors
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: AuthInterceptor,
+      multi: true
+    },
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: ErrorInterceptor,
+      multi: true
+    }
+  ],
   bootstrap: [AppComponent],
 })
 export class AppModule {}

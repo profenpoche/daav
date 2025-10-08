@@ -1,0 +1,106 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>Login</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="login-container">
+    <div class="logo-section">
+      <ion-icon name="lock-closed" class="logo-icon"></ion-icon>
+      <h1>Welcome Back</h1>
+      <p class="subtitle">Sign in to continue</p>
+    </div>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+      <!-- Username Field -->
+      <ion-item class="input-item" lines="none">
+        <ion-input
+          fill="outline"
+          label="Username or Email"
+          labelPlacement="floating"
+          formControlName="username"
+          type="text"
+          placeholder="Enter your username or email"
+          autocomplete="username"
+          [class.invalid]="loginForm.get('username')?.touched && loginForm.get('username')?.invalid"
+        >
+          <ion-icon name="person-outline" slot="start" class="input-icon" aria-hidden="true"></ion-icon>
+        </ion-input>
+      </ion-item>
+      <div class="error-message" *ngIf="getFieldError('username')">
+        <ion-icon name="alert-circle-outline"></ion-icon>
+        <span>{{ getFieldError('username') }}</span>
+      </div>
+
+      <!-- Password Field -->
+      <ion-item class="input-item" lines="none">
+        <ion-input
+          fill="outline"
+          label="Password"
+          labelPlacement="floating"
+          formControlName="password"
+          type="password"
+          placeholder="Enter your password"
+          autocomplete="current-password"
+          [class.invalid]="loginForm.get('password')?.touched && loginForm.get('password')?.invalid"
+        >
+          <ion-icon name="lock-closed-outline" slot="start" class="input-icon" aria-hidden="true"></ion-icon>
+          <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+        </ion-input>
+      </ion-item>
+      <div class="error-message" *ngIf="getFieldError('password')">
+        <ion-icon name="alert-circle-outline"></ion-icon>
+        <span>{{ getFieldError('password') }}</span>
+      </div>
+
+      <!-- Remember Me & Forgot Password -->
+      <div class="options-row">
+        <ion-item lines="none" class="remember-me-item">
+          <ion-checkbox formControlName="rememberMe" slot="start"></ion-checkbox>
+          <ion-label>Remember Me</ion-label>
+        </ion-item>
+
+        <ion-button
+          fill="clear"
+          size="small"
+          (click)="goToForgotPassword()"
+          type="button"
+          class="forgot-password-btn"
+        >
+          Forgot Password?
+        </ion-button>
+      </div>
+
+      <!-- Login Button -->
+      <ion-button
+        expand="block"
+        type="submit"
+        [disabled]="loading"
+        class="login-btn"
+      >
+        <ion-spinner *ngIf="loading" name="crescent"></ion-spinner>
+        <span *ngIf="!loading">Sign In</span>
+      </ion-button>
+
+      <!-- Divider -->
+      <div class="divider">
+        <span>OR</span>
+      </div>
+
+      <!-- Register Link -->
+      <div class="register-section">
+        <p>Don't have an account?</p>
+        <ion-button
+          expand="block"
+          fill="outline"
+          (click)="goToRegister()"
+          type="button"
+          class="register-btn"
+        >
+          Create Account
+        </ion-button>
+      </div>
+    </form>
+  </div>
+</ion-content>

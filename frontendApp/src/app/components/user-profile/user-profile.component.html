@@ -1,0 +1,200 @@
+<ion-header>
+  <ion-toolbar color="primary">
+    <ion-title>User Profile</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()">
+        <ion-icon name="close" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="profile-container" *ngIf="user">
+    <!-- User Info Card -->
+    <ion-card class="user-info-card">
+      <ion-card-header>
+        <div class="user-avatar">
+          <ion-icon name="person-circle" class="avatar-icon"></ion-icon>
+        </div>
+        <ion-card-title>{{ user.full_name }}</ion-card-title>
+        <ion-card-subtitle>{{ user.username }}</ion-card-subtitle>
+      </ion-card-header>
+
+      <ion-card-content>
+        <ion-list lines="none">
+          <!-- Email -->
+          <ion-item>
+            <ion-icon name="mail-outline" slot="start"></ion-icon>
+            <ion-label>
+              <p>Email</p>
+              <h3>{{ user.email }}</h3>
+            </ion-label>
+          </ion-item>
+
+          <!-- Role -->
+          <ion-item>
+            <ion-icon name="shield-outline" slot="start"></ion-icon>
+            <ion-label>
+              <p>Role</p>
+              <h3>{{ user.role | titlecase }}</h3>
+            </ion-label>
+            <ion-badge [color]="user.role === 'admin' ? 'danger' : 'primary'" slot="end">
+              {{ user.role | uppercase }}
+            </ion-badge>
+          </ion-item>
+
+          <!-- Account Status -->
+          <ion-item>
+            <ion-icon name="information-circle-outline" slot="start"></ion-icon>
+            <ion-label>
+              <p>Account Status</p>
+              <h3>{{ user.is_active ? 'Active' : 'Inactive' }}</h3>
+            </ion-label>
+            <ion-badge [color]="user.is_active ? 'success' : 'danger'" slot="end">
+              {{ user.is_active ? 'ACTIVE' : 'INACTIVE' }}
+            </ion-badge>
+          </ion-item>
+
+          <!-- Last Login -->
+          <ion-item>
+            <ion-icon name="time-outline" slot="start"></ion-icon>
+            <ion-label>
+              <p>Last Login</p>
+              <h3>{{ getFormattedDate(user.last_login) }}</h3>
+            </ion-label>
+          </ion-item>
+
+          <!-- Member Since -->
+          <ion-item>
+            <ion-icon name="calendar-outline" slot="start"></ion-icon>
+            <ion-label>
+              <p>Member Since</p>
+              <h3>{{ getFormattedDate(user.created_at) }}</h3>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Change Password Section -->
+    <ion-card class="action-card">
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="key-outline"></ion-icon>
+          Security
+        </ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <ion-button
+          expand="block"
+          fill="outline"
+          (click)="toggleChangePassword()"
+          [color]="showChangePassword ? 'medium' : 'primary'"
+        >
+          <ion-icon [name]="showChangePassword ? 'chevron-up-outline' : 'lock-closed-outline'" slot="start"></ion-icon>
+          {{ showChangePassword ? 'Cancel' : 'Change Password' }}
+        </ion-button>
+
+        <!-- Change Password Form -->
+        <div class="change-password-form" *ngIf="showChangePassword">
+          <form [formGroup]="changePasswordForm" (ngSubmit)="onChangePassword()">
+            <!-- Current Password -->
+            <ion-item class="input-item" lines="none">
+              <ion-input
+                fill="outline"
+                label="Current Password"
+                labelPlacement="floating"
+                formControlName="currentPassword"
+                type="password"
+                autocomplete="current-password"
+              >
+                <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+              </ion-input>
+            </ion-item>
+
+            <!-- New Password -->
+            <ion-item class="input-item" lines="none">
+              <ion-input
+                fill="outline"
+                label="New Password"
+                labelPlacement="floating"
+                formControlName="newPassword"
+                type="password"
+                autocomplete="new-password"
+              >
+                <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+              </ion-input>
+            </ion-item>
+
+            <!-- Confirm New Password -->
+            <ion-item class="input-item" lines="none">
+              <ion-input
+                fill="outline"
+                label="Confirm New Password"
+                labelPlacement="floating"
+                formControlName="confirmPassword"
+                type="password"
+                autocomplete="new-password"
+              >
+                <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+              </ion-input>
+            </ion-item>
+
+            <ion-button
+              expand="block"
+              type="submit"
+              [disabled]="loading || changePasswordForm.invalid"
+              class="submit-btn"
+            >
+              <ion-spinner *ngIf="loading" name="crescent"></ion-spinner>
+              <span *ngIf="!loading">Update Password</span>
+            </ion-button>
+          </form>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Actions Card -->
+    <ion-card class="action-card">
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="settings-outline"></ion-icon>
+          Account Actions
+        </ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <!-- Logout Button -->
+        <ion-button
+          expand="block"
+          color="medium"
+          (click)="onLogout()"
+          class="action-btn"
+        >
+          <ion-icon name="log-out-outline" slot="start"></ion-icon>
+          Logout
+        </ion-button>
+
+        <!-- Deactivate Account Button -->
+        <ion-button
+          expand="block"
+          color="danger"
+          fill="outline"
+          (click)="onDeactivateAccount()"
+          class="action-btn"
+        >
+          <ion-icon name="trash-outline" slot="start"></ion-icon>
+          Deactivate Account
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="!user">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Loading user profile...</p>
+  </div>
+</ion-content>

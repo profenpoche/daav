@@ -1,0 +1,215 @@
+.profile-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding-bottom: 2rem;
+}
+
+// User Info Card
+.user-info-card {
+  margin-bottom: 1rem;
+
+  ion-card-header {
+    text-align: center;
+    padding: 2rem 1rem 1rem;
+
+    .user-avatar {
+      margin-bottom: 1rem;
+
+      .avatar-icon {
+        font-size: 6rem;
+        color: var(--ion-color-primary);
+      }
+    }
+
+    ion-card-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    ion-card-subtitle {
+      font-size: 1rem;
+      color: var(--ion-color-medium);
+    }
+  }
+
+  ion-card-content {
+    padding: 0;
+
+    ion-list {
+      background: transparent;
+
+      ion-item {
+        --padding-start: 1rem;
+        --inner-padding-end: 1rem;
+        margin-bottom: 0.5rem;
+
+        ion-icon {
+          color: var(--ion-color-primary);
+          font-size: 1.5rem;
+          margin-right: 1rem;
+        }
+
+        ion-label {
+          p {
+            font-size: 0.875rem;
+            color: var(--ion-color-medium);
+            margin-bottom: 0.25rem;
+          }
+
+          h3 {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--ion-color-dark);
+          }
+        }
+
+        ion-badge {
+          font-size: 0.75rem;
+          padding: 0.25rem 0.75rem;
+        }
+      }
+    }
+  }
+}
+
+// Action Card
+.action-card {
+  margin-bottom: 1rem;
+
+  ion-card-header {
+    padding: 1rem 1rem 0.5rem;
+
+    ion-card-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.125rem;
+      font-weight: 600;
+
+      ion-icon {
+        color: var(--ion-color-primary);
+        font-size: 1.25rem;
+      }
+    }
+  }
+
+  ion-card-content {
+    padding: 1rem;
+
+    .action-btn {
+      margin-bottom: 0.75rem;
+      --border-radius: 8px;
+      height: 44px;
+      font-weight: 600;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+}
+
+// Change Password Form
+.change-password-form {
+  margin-top: 1.5rem;
+  animation: slideDown 0.3s ease-out;
+
+  form {
+    .input-item {
+      margin-bottom: 1rem;
+      --background: var(--ion-color-light);
+      --border-radius: 8px;
+      ion-input {
+        margin-top: 0.5rem;
+      }
+    }
+
+    .submit-btn {
+      margin-top: 1.5rem;
+      --border-radius: 8px;
+      height: 44px;
+      font-weight: 600;
+
+      ion-spinner {
+        margin-right: 0.5rem;
+      }
+    }
+  }
+}
+
+// Loading State
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+
+  ion-spinner {
+    margin-bottom: 1rem;
+  }
+
+  p {
+    color: var(--ion-color-medium);
+    font-size: 0.95rem;
+  }
+}
+
+// Animations
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 576px) {
+  .profile-container {
+    padding: 0 0 1rem 0;
+  }
+
+  .user-info-card {
+    ion-card-header {
+      padding: 1.5rem 1rem 0.75rem;
+
+      .user-avatar .avatar-icon {
+        font-size: 5rem;
+      }
+
+      ion-card-title {
+        font-size: 1.25rem;
+      }
+    }
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .user-info-card {
+    ion-card-content {
+      ion-list {
+        ion-item {
+          ion-label h3 {
+            color: var(--ion-color-light);
+          }
+        }
+      }
+    }
+  }
+
+  .change-password-form {
+    form {
+      .input-item {
+        --background: var(--ion-color-dark);
+      }
+    }
+  }
+}
