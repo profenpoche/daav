@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, status, Depends
-from fastapi.security import HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.models.interface.user_interface import (
     User, UserCreate, UserUpdate, UserResponse, UserConfigUpdate
@@ -30,10 +30,49 @@ auth_service = AuthService()
 user_service = UserService()
 
 
+async def conditional_admin_check(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+) -> Optional[User]:
+    """
+    Conditional dependency that requires admin authentication only when public registration is disabled.
+    
+    Returns:
+        - None if public registration is enabled (allow_public_registration=True)
+        - Admin user if public registration is disabled (allow_public_registration=False)
+    """
+    if settings.allow_public_registration:
+        return None
+    
+    # Public registration is disabled, require admin authentication
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Get and verify user
+    current_user = await auth_service.get_current_user(credentials.credentials)
+    
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user"
+        )
+    
+    if current_user.role.value != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required"
+        )
+    
+    return current_user
+
+
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     user_data: UserCreate,
-    admin_user: Optional[User] = Depends(lambda: None if settings.allow_public_registration else require_admin)
+    admin_user: Optional[User] = Depends(conditional_admin_check)
 ):
     """
     Register a new user
@@ -51,20 +90,17 @@ async def register(
     
     **Note:** Only admins can create users with admin role, regardless of public registration setting.
     """
+    # Only admins can create admin users
+    if user_data.role.value == "admin" and not admin_user:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can create admin users"
+        )
+    
     try:
-        # Only admins can create admin users
-        if user_data.role.value == "admin":
-            if not admin_user or admin_user.role.value != "admin":
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Only administrators can create admin users"
-                )
-        
         user = await user_service.create_user(user_data)
         logger.info(f"New user registered: {user.username}")
         return UserResponse.model_validate(user)
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Registration error: {e}", exc_info=True)
         raise HTTPException(

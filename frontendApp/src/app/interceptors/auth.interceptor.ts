@@ -21,8 +21,8 @@ export class AuthInterceptor implements HttpInterceptor {
     // Get access token
     const accessToken = this.tokenService.getAccessToken();
 
-    // Skip adding token for login/register/forgot-password/reset-password endpoints
-    const skipAuthUrls = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password'];
+    // Skip adding token for login/forgot-password/reset-password endpoints
+    const skipAuthUrls = ['/auth/login', '/auth/forgot-password', '/auth/reset-password'];
     const shouldSkip = skipAuthUrls.some(url => request.url.includes(url));
 
     if (accessToken && !shouldSkip) {
