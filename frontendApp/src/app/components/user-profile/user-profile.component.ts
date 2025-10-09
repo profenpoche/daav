@@ -388,6 +388,63 @@ export class UserProfileComponent implements OnInit {
   }
 
   /**
+   * Change user password (Admin)
+   */
+  async changeUserPassword(user: User) {
+    const alert = await this.alertController.create({
+      header: 'Change Password',
+      message: `Change password for ${user.username}`,
+      inputs: [
+        {
+          name: 'newPassword',
+          type: 'password',
+          placeholder: 'New password (min 8 characters)',
+          attributes: {
+            minlength: 8
+          }
+        },
+        {
+          name: 'confirmPassword',
+          type: 'password',
+          placeholder: 'Confirm new password'
+        }
+      ],
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel'
+        },
+        {
+          text: 'Change',
+          handler: (data) => {
+            if (!data.newPassword || data.newPassword.length < 8) {
+              this.showToast('Password must be at least 8 characters', 'warning');
+              return false;
+            }
+            if (data.newPassword !== data.confirmPassword) {
+              this.showToast('Passwords do not match', 'warning');
+              return false;
+            }
+
+            // Use updateUser to change password via PUT /auth/users/{id}
+            this.authService.updateUser(user.id, { password: data.newPassword }).subscribe({
+              next: async () => {
+                await this.showToast(`Password changed successfully for ${user.username}`, 'success');
+              },
+              error: async (error) => {
+                await this.showToast('Failed to change password: ' + error.message, 'danger');
+              }
+            });
+            return true;
+          }
+        }
+      ]
+    });
+
+    await alert.present();
+  }
+
+  /**
    * Navigate to create user (register page)
    */
   async createNewUser() {

@@ -247,6 +247,16 @@
                   <ion-button
                     size="small"
                     fill="outline"
+                    color="secondary"
+                    (click)="changeUserPassword(managedUser)"
+                  >
+                    <ion-icon name="key-outline" slot="start"></ion-icon>
+                    Change Password
+                  </ion-button>
+
+                  <ion-button
+                    size="small"
+                    fill="outline"
                     color="danger"
                     (click)="deleteUser(managedUser)"
                   >

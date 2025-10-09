@@ -313,6 +313,17 @@ export class AuthService {
   }
 
   /**
+   * Update user (Admin only)
+   * Can update any field including password
+   */
+  updateUser(userId: string, userData: UserUpdate): Observable<User> {
+    return this.http.put<User>(`${this.baseService.urlBack}/auth/users/${userId}`, userData)
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  /**
    * Handle HTTP errors
    */
   private handleError(error: any): Observable<never> {
