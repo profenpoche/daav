@@ -10,6 +10,7 @@ from app.models.interface.dataset_interface import (
     PTXDataset, ApiDataset, ElasticDataset
 )
 from app.models.interface.workflow_interface import IProject
+from app.models.interface.user_interface import User
 from app.enums.user_role import UserRole
 
 _test_database = None
@@ -35,6 +36,7 @@ async def setup_test_db():
         await init_beanie(
             database=_test_database,
             document_models=[
+                User,
                 Dataset,
                 FileDataset,
                 MongoDataset,
@@ -53,7 +55,7 @@ async def clean_collections():
     """Clean all collections before each test."""
     if _test_database is not None:
         # Clean collections
-        for model in [Dataset, FileDataset, MongoDataset, MysqlDataset, PTXDataset, ApiDataset, ElasticDataset]:
+        for model in [User, Dataset, FileDataset, MongoDataset, MysqlDataset, PTXDataset, ApiDataset, ElasticDataset, IProject]:
             try:
                 await model.delete_all()
             except Exception:
