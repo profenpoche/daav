@@ -100,6 +100,40 @@ def convert_numpy_type_to_python(value) -> str:
         return type_name
 
 
+def normalize_dtype_string(dtype) -> str:
+    """Normalize pandas/numpy dtype to avoid deprecated type warnings."""
+    dtype_str = str(dtype)
+    
+    # Map deprecated numpy types to modern equivalents
+    dtype_map = {
+        'bool': 'bool',
+        'int8': 'int',
+        'int16': 'int', 
+        'int32': 'int',
+        'int64': 'int',
+        'uint8': 'int',
+        'uint16': 'int',
+        'uint32': 'int', 
+        'uint64': 'int',
+        'float16': 'float',
+        'float32': 'float',
+        'float64': 'float',
+        'complex64': 'complex',
+        'complex128': 'complex',
+        'object': 'str',
+        'string': 'str',
+        'datetime64': 'datetime',
+        'timedelta64': 'timedelta'
+    }
+    
+    # Check for exact matches or partial matches
+    for np_type, python_type in dtype_map.items():
+        if np_type in dtype_str.lower():
+            return python_type
+            
+    return dtype_str
+
+
 def convert_size(size: str) -> str:
     import math
 
@@ -269,7 +303,7 @@ def generate_pandas_schema(data: pd.DataFrame | pd.Series | dict) -> PandasSchem
             # Basic column info
             col_schema = PandasColumn(
                 name=col_name,
-                dtype=str(data[column].dtype),
+                dtype=normalize_dtype_string(data[column].dtype),
                 nullable=data[column].isnull().any(),
                 count=data[column].notnull().sum(),
                 nested=None
@@ -362,7 +396,7 @@ def generate_pandas_schema(data: pd.DataFrame | pd.Series | dict) -> PandasSchem
                 # Series vide
                 col_schema = PandasColumn(
                     name=array_item_tag,
-                    dtype=str(data.dtype),
+                    dtype=normalize_dtype_string(data.dtype),
                     nullable=True,
                     count=0,
                     nested=None
