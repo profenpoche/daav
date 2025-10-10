@@ -21,6 +21,9 @@ from app.models.interface.dataset_interface import (
     DatasetUnion, Dataset, FileDataset, MongoDataset, MysqlDataset,
     ApiDataset, ElasticDataset, PTXDataset, DatasetParams, Pagination
 )
+from app.services.user_service import UserService
+from app.models.interface.user_interface import User
+from app.enums.user_role import UserRole
 from app.utils.singleton import SingletonMeta
 from app.models.interface.node_data import NodeDataPandasDf
 from app.utils.utils import convert_size, folder, generate_pandas_schema
@@ -41,6 +44,7 @@ class DatasetService(metaclass=SingletonMeta):
         self.config = {"connections": []}
         self.pdcChainData: Union[PdcChainRequestData, str, List[Any], Dict[str, Any]] = None
         self.pdcChainHeaders: PdcChainHeaders = None
+        self.user_service = UserService()
         logger.info("DatasetService initialized")
 
     @property
@@ -59,40 +63,67 @@ class DatasetService(metaclass=SingletonMeta):
     def pdcChainHeaders(self, value):
         pdc_chain_headers_var.set(value)
 
-    async def get_datasets(self) -> List[Dataset]:
-        """Retrieve all datasets"""
+    async def get_datasets(self, user: User) -> List[Dataset]:
+        """Retrieve all datasets accessible by user"""
         try:
-            logger.info("Starting get_datasets...")
+            logger.info(f"Getting datasets for user: {user.username}")
 
-            datasets = await Dataset.find().to_list()
-            logger.info(f"Successfully retrieved {mysql} dataset")
+            # Admin can see all datasets
+            if user.role == UserRole.ADMIN:
+                datasets = await Dataset.find().to_list()
+                logger.info(f"Admin retrieved {len(datasets)} datasets")
+                return datasets
+            
+            # Regular user - filter by owned + shared
+            dataset_ids = user.owned_datasets + user.shared_datasets
+            if not dataset_ids:
+                logger.info(f"User {user.username} has no datasets")
+                return []
+            
+            datasets = await Dataset.find({"_id": {"$in": dataset_ids}}).to_list()
+            logger.info(f"User {user.username} retrieved {len(datasets)} datasets")
             return datasets
             
         except Exception as e:
             logger.error(f"Error in get_datasets: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def get_dataset(self, id: str) -> Dataset:
-        """Retrieve a single dataset by ID"""
+    async def get_dataset(self, id: str, user: User) -> Dataset:
+        """Retrieve a single dataset by ID with permission check"""
         try:
-            logger.info(f"Fetching dataset with ID: {id}")
+            logger.info(f"User {user.username} fetching dataset with ID: {id}")
             
-            # Aussi avec with_children=True
+            # Get dataset
             dataset = await Dataset.get(id, with_children=True)
             if not dataset:
                 raise HTTPException(status_code=404, detail="Dataset not found")
             
-            logger.info(f"Successfully retrieved dataset: {dataset.name}")
+            # Check permission using user_service
+            can_access = await self.user_service.can_access_dataset(user, id)
+            if not can_access:
+                logger.warning(f"User {user.username} denied access to dataset {id}")
+                raise HTTPException(status_code=403, detail="Access denied")
+            
+            logger.info(f"User {user.username} successfully accessed dataset: {dataset.name}")
             return dataset
             
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error retrieving dataset {id}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def delete_dataset(self, id: str) -> bool:
-        """Delete a dataset"""
+    async def delete_dataset(self, id: str, user: User) -> bool:
+        """Delete a dataset with permission check"""
         try:
-            logger.info(f"Attempting to delete dataset with ID: {id}")
+            logger.info(f"User {user.username} attempting to delete dataset with ID: {id}")
+            
+            # Check permission using user_service
+            can_modify = await self.user_service.can_modify_dataset(user, id)
+            if not can_modify:
+                logger.warning(f"User {user.username} denied permission to delete dataset {id}")
+                raise HTTPException(status_code=403, detail="Access denied")
+            
             dataset = await Dataset.get(id)
             if not dataset:
                 logger.warning(f"Attempted to delete non-existent dataset: {id}")
@@ -101,15 +132,20 @@ class DatasetService(metaclass=SingletonMeta):
             dataset_name = dataset.name
             dataset_type = dataset.type
             
+            # Remove ownership relations BEFORE deleting
+            await self.user_service.remove_dataset_ownership(id)
+            
             # Type-specific cleanup
             if dataset_type == "file":
                 logger.debug(f"Cleaning up files for dataset: {dataset_name}")
                 self._cleanup_file_dataset(dataset)
             
             await dataset.delete()
-            logger.info(f"Successfully deleted dataset: {dataset_name} (Type: {dataset_type}, ID: {id})")
+            logger.info(f"User {user.username} successfully deleted dataset: {dataset_name} (Type: {dataset_type}, ID: {id})")
             return True
             
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error deleting dataset {id}: {e}", exc_info=True)
             return False
@@ -154,10 +190,10 @@ class DatasetService(metaclass=SingletonMeta):
         except Exception as e:
             logger.error(f"Error cleaning up files for dataset {dataset.name}: {e}", exc_info=True)
 
-    async def add_connection(self, connection: DatasetUnion) -> dict:
-        """Add a new connection"""
+    async def add_connection(self, connection: DatasetUnion, user: User) -> dict:
+        """Add a new connection with ownership assignment"""
         try:
-            logger.info(f"Adding new connection: {connection.name} (Type: {connection.type})")
+            logger.info(f"User {user.username} adding new connection: {connection.name} (Type: {connection.type})")
             
             # Check for duplicates
             if await self._connection_exists(connection):
@@ -172,9 +208,13 @@ class DatasetService(metaclass=SingletonMeta):
                 logger.debug(f"Processing PTX dataset: {connection.name}")
                 connection = self._process_ptx_dataset(connection)
             
-            # Save directly
+            # Save dataset first
             await connection.insert()
-            logger.info(f"Successfully added connection: {connection.name} (Type: {connection.type})")
+            
+            # Assign ownership (bidirectional)
+            await self.user_service.assign_dataset_ownership(user, connection)
+            
+            logger.info(f"User {user.username} successfully added connection: {connection.name} (Type: {connection.type})")
             return {"status": "Connection added"}
             
         except Exception as e:
@@ -342,20 +382,31 @@ class DatasetService(metaclass=SingletonMeta):
             logger.error(f"Error connecting to PDC {url}: {e}", exc_info=True)
             raise Exception(e)
 
-    async def edit_dataset(self, dataset: DatasetUnion) -> bool:
-        """Edit an existing dataset"""
+    async def edit_dataset(self, dataset: DatasetUnion, user: User) -> bool:
+        """Edit an existing dataset with permission check"""
         try:
+            logger.info(f"User {user.username} editing dataset: {dataset.id}")
+            
+            # Check permission using user_service
+            can_modify = await self.user_service.can_modify_dataset(user, dataset.id)
+            if not can_modify:
+                logger.warning(f"User {user.username} denied permission to edit dataset {dataset.id}")
+                raise HTTPException(status_code=403, detail="Access denied")
+            
             existing = await Dataset.get(dataset.id)
             if not existing:
-                return False
+                raise HTTPException(status_code=404, detail="Dataset not found")
             
             dataset.updated_at = datetime.utcnow()
             await dataset.replace()
+            logger.info(f"User {user.username} successfully edited dataset: {dataset.id}")
             return True
             
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"Error editing dataset: {e}")
-            return False
+            logger.error(f"Error editing dataset: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to edit dataset")
     
     async def find_file_connection(self, folder: str, name: str = None) -> FileDataset:
         """Find an existing file connection or create it"""

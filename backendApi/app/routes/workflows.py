@@ -1,9 +1,10 @@
 import logging
-from fastapi import APIRouter, HTTPException, status, Body
+from fastapi import APIRouter, HTTPException, status, Body, Depends
 from typing import List, Optional
 import uuid
 from app.models.interface.workflow_interface import IProject
 from app.services.workflow_service import workflow_service
+from app.middleware.auth import CurrentUser
 from app.core.workflow import Workflow
 
 logger = logging.getLogger(__name__)
@@ -15,9 +16,9 @@ router = APIRouter(
 )
 
 @router.get("/", response_model=List[IProject])
-async def get_workflows() -> List[IProject]:
+async def get_workflows(current_user: CurrentUser) -> List[IProject]:
     """
-    Fetch the list of workflows.
+    Fetch the list of workflows accessible by current user.
 
     This endpoint retrieves all workflows stored in the database.
 
@@ -48,18 +49,18 @@ async def get_workflows() -> List[IProject]:
         ```
     """
     try:
-        logger.info("Fetching all workflows")
-        workflows = await workflow_service.get_workflows()
-        logger.info(f"Successfully returned {len(workflows)} workflows")
+        logger.info(f"User {current_user.username} fetching workflows")
+        workflows = await workflow_service.get_workflows(current_user)
+        logger.info(f"Successfully returned {len(workflows)} workflows to user {current_user.username}")
         return workflows
     except Exception as e:
         logger.error(f"Error fetching workflows: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/{id}", response_model=IProject)
-async def get_workflow(id: str) -> IProject:
+async def get_workflow(id: str, current_user: CurrentUser) -> IProject:
     """
-    Retrieve a workflow by its ID.
+    Retrieve a workflow by its ID with permission check.
 
     This endpoint fetches a specific workflow from the database using its unique identifier.
 
@@ -96,8 +97,8 @@ async def get_workflow(id: str) -> IProject:
         ```
     """
     try:
-        logger.info(f"Fetching workflow with ID: {id}")
-        workflow = await workflow_service.get_workflow(id)
+        logger.info(f"User {current_user.username} fetching workflow with ID: {id}")
+        workflow = await workflow_service.get_workflow(id, current_user)
         return workflow
     except HTTPException:
         raise
@@ -106,9 +107,9 @@ async def get_workflow(id: str) -> IProject:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/", response_model=IProject, status_code=status.HTTP_201_CREATED)
-async def create_workflow(workflow_json: str = Body(..., description="JSON string representation of the workflow")) -> IProject:
+async def create_workflow(current_user: CurrentUser, workflow_json: str = Body(..., description="JSON string representation of the workflow")) -> IProject:
     """
-    Create a new workflow.
+    Create a new workflow with ownership assignment.
 
     This endpoint creates a new workflow in the database from a JSON representation.
     If no ID is provided, a new UUID will be automatically generated.
@@ -317,7 +318,7 @@ async def create_workflow(workflow_json: str = Body(..., description="JSON strin
         ```
     """
     try:
-        logger.info("Creating new workflow")
+        logger.info(f"User {current_user.username} creating new workflow")
         
         # Parse JSON
         workflow_data = IProject.model_validate_json(workflow_json)
@@ -329,9 +330,9 @@ async def create_workflow(workflow_json: str = Body(..., description="JSON strin
         # Convert to dict for service
         workflow_dict = workflow_data.model_dump(mode='json')
         
-        # Create workflow
-        new_workflow = await workflow_service.create_workflow(workflow_dict)
-        logger.info(f"Successfully created workflow: {new_workflow.name}")
+        # Create workflow with ownership
+        new_workflow = await workflow_service.create_workflow(workflow_dict, current_user)
+        logger.info(f"User {current_user.username} successfully created workflow: {new_workflow.name}")
         return new_workflow
         
     except Exception as e:
@@ -339,9 +340,9 @@ async def create_workflow(workflow_json: str = Body(..., description="JSON strin
         raise HTTPException(status_code=500, detail="Failed to create workflow")
 
 @router.put("/", response_model=IProject)
-async def update_workflow(workflow_json: str = Body(..., description="JSON string representation of the workflow to update")) -> IProject:
+async def update_workflow(current_user: CurrentUser, workflow_json: str = Body(..., description="JSON string representation of the workflow to update")) -> IProject:
     """
-    Update an existing workflow.
+    Update an existing workflow with permission check.
 
     This endpoint updates an existing workflow in the database. The workflow ID must be provided
     in the JSON data to identify which workflow to update.
@@ -390,7 +391,7 @@ async def update_workflow(workflow_json: str = Body(..., description="JSON strin
         ```
     """
     try:
-        logger.info("Updating workflow")
+        logger.info(f"User {current_user.username} updating workflow")
         
         # Parse JSON
         workflow_data = IProject.model_validate_json(workflow_json)
@@ -401,9 +402,9 @@ async def update_workflow(workflow_json: str = Body(..., description="JSON strin
         # Convert to dict for service
         workflow_dict = workflow_data.model_dump(mode='json')
         
-        # Update workflow
-        updated_workflow = await workflow_service.update_workflow(workflow_dict)
-        logger.info(f"Successfully updated workflow: {updated_workflow.name}")
+        # Update workflow with permission check
+        updated_workflow = await workflow_service.update_workflow(workflow_dict, current_user)
+        logger.info(f"User {current_user.username} successfully updated workflow: {updated_workflow.name}")
         return updated_workflow
         
     except HTTPException:
@@ -413,9 +414,9 @@ async def update_workflow(workflow_json: str = Body(..., description="JSON strin
         raise HTTPException(status_code=500, detail="Failed to update workflow")
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_workflow(id: str):
+async def delete_workflow(id: str, current_user: CurrentUser):
     """
-    Delete a workflow by its ID.
+    Delete a workflow by its ID with permission check.
 
     This endpoint permanently removes a workflow from the database.
     This operation cannot be undone.
@@ -441,12 +442,13 @@ async def delete_workflow(id: str):
         ```
     """
     try:
-        logger.info(f"Deleting workflow with ID: {id}")
-        success = await workflow_service.delete_workflow(id)
+        logger.info(f"User {current_user.username} deleting workflow with ID: {id}")
+        success = await workflow_service.delete_workflow(id, current_user)
         
         if not success:
             raise HTTPException(status_code=404, detail="Workflow not found")
         
+        logger.info(f"User {current_user.username} successfully deleted workflow: {id}")
         logger.info(f"Successfully deleted workflow: {id}")
         return
         

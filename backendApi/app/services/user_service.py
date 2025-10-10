@@ -484,12 +484,22 @@ class UserService(metaclass=SingletonMeta):
             if dataset_id not in owner.owned_datasets and owner.role != UserRole.ADMIN:
                 raise HTTPException(status_code=403, detail="Not authorized to share this dataset")
             
-            # Add to target user's shared datasets
+            # Get the dataset
+            dataset = await Dataset.get(dataset_id)
+            if not dataset:
+                raise HTTPException(status_code=404, detail="Dataset not found")
+            
+            # 1. Update User side
             if dataset_id not in target_user.shared_datasets:
                 target_user.shared_datasets.append(dataset_id)
                 await target_user.save()
-                logger.info(f"Dataset {dataset_id} shared with user {target_user.username}")
             
+            # 2. Update Dataset side
+            if target_user_id not in dataset.shared_with:
+                dataset.shared_with.append(target_user_id)
+                await dataset.save()
+            
+            logger.info(f"Dataset {dataset_id} shared with user {target_user.username} (bidirectional)")
             return True
         except HTTPException:
             raise
@@ -510,12 +520,22 @@ class UserService(metaclass=SingletonMeta):
             if dataset_id not in owner.owned_datasets and owner.role != UserRole.ADMIN:
                 raise HTTPException(status_code=403, detail="Not authorized to unshare this dataset")
             
-            # Remove from target user's shared datasets
+            # Get the dataset
+            dataset = await Dataset.get(dataset_id)
+            if not dataset:
+                raise HTTPException(status_code=404, detail="Dataset not found")
+            
+            # 1. Update User side
             if dataset_id in target_user.shared_datasets:
                 target_user.shared_datasets.remove(dataset_id)
                 await target_user.save()
-                logger.info(f"Dataset {dataset_id} unshared from user {target_user.username}")
             
+            # 2. Update Dataset side
+            if target_user_id in dataset.shared_with:
+                dataset.shared_with.remove(target_user_id)
+                await dataset.save()
+            
+            logger.info(f"Dataset {dataset_id} unshared from user {target_user.username} (bidirectional)")
             return True
         except HTTPException:
             raise
@@ -536,12 +556,22 @@ class UserService(metaclass=SingletonMeta):
             if workflow_id not in owner.owned_workflows and owner.role != UserRole.ADMIN:
                 raise HTTPException(status_code=403, detail="Not authorized to share this workflow")
             
-            # Add to target user's shared workflows
+            # Get the workflow
+            workflow = await IProject.get(workflow_id)
+            if not workflow:
+                raise HTTPException(status_code=404, detail="Workflow not found")
+            
+            # 1. Update User side
             if workflow_id not in target_user.shared_workflows:
                 target_user.shared_workflows.append(workflow_id)
                 await target_user.save()
-                logger.info(f"Workflow {workflow_id} shared with user {target_user.username}")
             
+            # 2. Update Workflow side
+            if target_user_id not in workflow.shared_with:
+                workflow.shared_with.append(target_user_id)
+                await workflow.save()
+            
+            logger.info(f"Workflow {workflow_id} shared with user {target_user.username} (bidirectional)")
             return True
         except HTTPException:
             raise
@@ -562,15 +592,129 @@ class UserService(metaclass=SingletonMeta):
             if workflow_id not in owner.owned_workflows and owner.role != UserRole.ADMIN:
                 raise HTTPException(status_code=403, detail="Not authorized to unshare this workflow")
             
-            # Remove from target user's shared workflows
+            # Get the workflow
+            workflow = await IProject.get(workflow_id)
+            if not workflow:
+                raise HTTPException(status_code=404, detail="Workflow not found")
+            
+            # 1. Update User side
             if workflow_id in target_user.shared_workflows:
                 target_user.shared_workflows.remove(workflow_id)
                 await target_user.save()
-                logger.info(f"Workflow {workflow_id} unshared from user {target_user.username}")
             
+            # 2. Update Workflow side
+            if target_user_id in workflow.shared_with:
+                workflow.shared_with.remove(target_user_id)
+                await workflow.save()
+            
+            logger.info(f"Workflow {workflow_id} unshared from user {target_user.username} (bidirectional)")
             return True
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Error unsharing workflow: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to unshare workflow")
+    
+    async def assign_dataset_ownership(self, user: User, dataset: Dataset) -> None:
+        """
+        Assign ownership of a dataset to a user - BIDIRECTIONAL
+        Called when creating a new dataset
+        """
+        try:
+            # 1. Update Dataset side
+            dataset.owner_id = user.id
+            await dataset.save()
+            
+            # 2. Update User side
+            if dataset.id not in user.owned_datasets:
+                user.owned_datasets.append(dataset.id)
+                await user.save()
+            
+            logger.info(f"Dataset {dataset.id} ownership assigned to user {user.username}")
+            
+        except Exception as e:
+            logger.error(f"Error assigning dataset ownership: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to assign dataset ownership")
+    
+    async def assign_workflow_ownership(self, user: User, workflow: IProject) -> None:
+        """
+        Assign ownership of a workflow to a user - BIDIRECTIONAL
+        Called when creating a new workflow
+        """
+        try:
+            # 1. Update Workflow side
+            workflow.owner_id = user.id
+            await workflow.save()
+            
+            # 2. Update User side
+            if workflow.id not in user.owned_workflows:
+                user.owned_workflows.append(workflow.id)
+                await user.save()
+            
+            logger.info(f"Workflow {workflow.id} ownership assigned to user {user.username}")
+            
+        except Exception as e:
+            logger.error(f"Error assigning workflow ownership: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to assign workflow ownership")
+    
+    async def remove_dataset_ownership(self, dataset_id: str) -> None:
+        """
+        Remove all ownership and sharing relations when deleting a dataset - BIDIRECTIONAL
+        Called before deleting a dataset
+        """
+        try:
+            # Get the dataset
+            dataset = await Dataset.get(dataset_id)
+            if not dataset:
+                return  # Already deleted
+            
+            # 1. Remove from owner's owned_datasets
+            if dataset.owner_id:
+                owner = await self.get_user_by_id(dataset.owner_id)
+                if owner and dataset_id in owner.owned_datasets:
+                    owner.owned_datasets.remove(dataset_id)
+                    await owner.save()
+            
+            # 2. Remove from all shared users' shared_datasets
+            for user_id in dataset.shared_with:
+                user = await self.get_user_by_id(user_id)
+                if user and dataset_id in user.shared_datasets:
+                    user.shared_datasets.remove(dataset_id)
+                    await user.save()
+            
+            logger.info(f"Dataset {dataset_id} ownership and sharing removed (bidirectional)")
+            
+        except Exception as e:
+            logger.error(f"Error removing dataset ownership: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to remove dataset ownership")
+    
+    async def remove_workflow_ownership(self, workflow_id: str) -> None:
+        """
+        Remove all ownership and sharing relations when deleting a workflow - BIDIRECTIONAL
+        Called before deleting a workflow
+        """
+        try:
+            # Get the workflow
+            workflow = await IProject.get(workflow_id)
+            if not workflow:
+                return  # Already deleted
+            
+            # 1. Remove from owner's owned_workflows
+            if workflow.owner_id:
+                owner = await self.get_user_by_id(workflow.owner_id)
+                if owner and workflow_id in owner.owned_workflows:
+                    owner.owned_workflows.remove(workflow_id)
+                    await owner.save()
+            
+            # 2. Remove from all shared users' shared_workflows
+            for user_id in workflow.shared_with:
+                user = await self.get_user_by_id(user_id)
+                if user and workflow_id in user.shared_workflows:
+                    user.shared_workflows.remove(workflow_id)
+                    await user.save()
+            
+            logger.info(f"Workflow {workflow_id} ownership and sharing removed (bidirectional)")
+            
+        except Exception as e:
+            logger.error(f"Error removing workflow ownership: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to remove workflow ownership")

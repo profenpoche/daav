@@ -1,8 +1,9 @@
 import logging
 import traceback
-from fastapi import APIRouter, Body, HTTPException, Request,status, UploadFile
+from fastapi import APIRouter, Body, HTTPException, Request, status, UploadFile, Depends
 import httpx
 from app.config.security import SecurityConfig
+from app.middleware.auth import CurrentUser
 from app.middleware.security import log_file_access
 from app.models.interface.dataset_interface import DatasetContentResponse, DatasetUnion, ConnectionInfo, DatasetParams, PTXDataset, Pagination, Dataset, MySQLContentResponse, MysqlDataset, MongoContentResponse, MongoDataset, ElasticContentResponse, ElasticDataset, ApiContentResponse, ApiDataset, FileContentResponse, FileDataset
 import xml.etree.ElementTree as ET
@@ -29,31 +30,32 @@ dataset_service = DatasetService()
 UPLOAD_DIR = Path(settings.upload_dir)
 
 @router.get("/")
-async def get_all_datasets():
-    """Get all datasets"""
+async def get_all_datasets(current_user: CurrentUser):
+    """Get all datasets accessible by current user"""
     try:
-        logger.info("Fetching all datasets")
-        datasets = await dataset_service.get_datasets()
+        logger.info(f"User {current_user.username} fetching datasets")
+        datasets = await dataset_service.get_datasets(current_user)
 
-        logger.info(f"Successfully returned {len(datasets)} datasets")
+        logger.info(f"Successfully returned {len(datasets)} datasets to user {current_user.username}")
         return datasets
     except Exception as e:
         logger.error(f"Error fetching datasets: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/{id}")
-async def get_dataset(id: str) -> Dataset:
-    return dataset_service.get_dataset(id)
+async def get_dataset(id: str, current_user: CurrentUser) -> Dataset:
+    """Get a single dataset with permission check"""
+    return await dataset_service.get_dataset(id, current_user)
 
 @router.delete("/{dataset_id}")
-async def delete_dataset(dataset_id: str):
-    """Delete a dataset"""
+async def delete_dataset(dataset_id: str, current_user: CurrentUser):
+    """Delete a dataset with permission check"""
     try:
-        logger.info(f"Deleting dataset with ID: {dataset_id}")
-        success = await dataset_service.delete_dataset(dataset_id)
+        logger.info(f"User {current_user.username} deleting dataset: {dataset_id}")
+        success = await dataset_service.delete_dataset(dataset_id, current_user)
         
         if success:
-            logger.info(f"Successfully deleted dataset: {dataset_id}")
+            logger.info(f"User {current_user.username} successfully deleted dataset: {dataset_id}")
             return {"message": "Dataset deleted successfully"}
         else:
             logger.warning(f"Failed to delete dataset: {dataset_id}")
@@ -66,18 +68,19 @@ async def delete_dataset(dataset_id: str):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/")
-async def edit_dataset(dataset: DatasetUnion) -> bool:
-    return await dataset_service.edit_dataset(dataset)
+async def edit_dataset(dataset: DatasetUnion, current_user: CurrentUser) -> bool:
+    """Edit a dataset with permission check"""
+    return await dataset_service.edit_dataset(dataset, current_user)
 
 @router.post("/")
-async def create_dataset(dataset: DatasetUnion):
-    """Create a new dataset"""
+async def create_dataset(dataset: DatasetUnion, current_user: CurrentUser):
+    """Create a new dataset with ownership assignment"""
     try:
-        logger.info(f"Creating new dataset: {dataset.name} (Type: {dataset.type})")
-        result = await dataset_service.add_connection(dataset)
+        logger.info(f"User {current_user.username} creating new dataset: {dataset.name} (Type: {dataset.type})")
+        result = await dataset_service.add_connection(dataset, current_user)
         
         if result["status"] == "Connection added":
-            logger.info(f"Successfully created dataset: {dataset.name}")
+            logger.info(f"User {current_user.username} successfully created dataset: {dataset.name}")
         else:
             logger.warning(f"Dataset creation failed: {result['status']}")
             
@@ -162,9 +165,18 @@ async def _save_upload_file(file: UploadFile, name: str = None) -> dict:
         result["folder"] = str(sub_dir)
     return result
 
-@router.post("/getContentDataset" ,response_model=DatasetContentResponse)
-async def getContentDataset(request: Request,data: ConnectionInfo)-> DatasetContentResponse:
+@router.post("/getContentDataset", response_model=DatasetContentResponse)
+async def getContentDataset(request: Request, data: ConnectionInfo, current_user: CurrentUser) -> DatasetContentResponse:
+    """Get dataset content with permission check"""
     connection = data.dataset
+    
+    # Check permission if dataset has an ID
+    if hasattr(connection, 'id') and connection.id:
+        can_access = await dataset_service.user_service.can_access_dataset(current_user, connection.id)
+        if not can_access:
+            logger.warning(f"User {current_user.username} denied access to dataset {connection.id}")
+            raise HTTPException(status_code=403, detail="Access denied")
+    
     pagination = data.pagination
     datasetParams = data.datasetParams
     if isinstance(connection, FileDataset):
@@ -189,9 +201,18 @@ async def getContentDataset(request: Request,data: ConnectionInfo)-> DatasetCont
     else :
         raise ValueError("Type de connexion non reconnu")
     
-@router.post("/getDfContentDataset" ,response_model=NodeDataUnion)
-def getDfContentDataset(request: Request,data: ConnectionInfo)-> NodeDataPandasDf:
+@router.post("/getDfContentDataset", response_model=NodeDataUnion)
+async def getDfContentDataset(request: Request, data: ConnectionInfo, current_user: CurrentUser) -> NodeDataPandasDf:
+    """Get dataset dataframe content with permission check"""
     connection = data.dataset
+    
+    # Check permission if dataset has an ID
+    if hasattr(connection, 'id') and connection.id:
+        can_access = await dataset_service.user_service.can_access_dataset(current_user, connection.id)
+        if not can_access:
+            logger.warning(f"User {current_user.username} denied access to dataset {connection.id}")
+            raise HTTPException(status_code=403, detail="Access denied")
+    
     pagination = data.pagination
     datasetParams = data.datasetParams
     if isinstance(connection, FileDataset):
