@@ -560,3 +560,62 @@ def test_get_df_file_content_unsupported_file_format(dataset_service, temp_unkno
 
 if __name__ == "__main__":
     pytest.main([__file__])
+
+# ============================================================================
+# M2M (Machine-to-Machine) Tests - Optional User Parameter
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_get_datasets_without_user():
+    """Test that get_datasets works without user (returns all datasets for M2M calls)"""
+    dataset_service = DatasetService()
+    
+    # Create test datasets
+    dataset1 = FileDataset(
+        id="test-dataset-m2m-1",
+        name="M2M Dataset 1",
+        type="file",
+        inputType="file",
+        path="/tmp/test_m2m_1.csv"
+    )
+    dataset2 = FileDataset(
+        id="test-dataset-m2m-2",
+        name="M2M Dataset 2",
+        type="file",
+        inputType="file",
+        path="/tmp/test_m2m_2.csv"
+    )
+    await dataset1.insert()
+    await dataset2.insert()
+    
+    # Call without user parameter (M2M style)
+    datasets = await dataset_service.get_datasets()
+    
+    # Should get all datasets without permission filtering
+    assert len(datasets) >= 2
+    assert any(d.id == "test-dataset-m2m-1" for d in datasets)
+    assert any(d.id == "test-dataset-m2m-2" for d in datasets)
+
+
+@pytest.mark.asyncio
+async def test_get_dataset_without_user():
+    """Test that get_dataset works without user (no permission check for M2M calls)"""
+    dataset_service = DatasetService()
+    
+    # Create test dataset
+    dataset = FileDataset(
+        id="test-dataset-m2m-3",
+        name="M2M Dataset 3",
+        type="file",
+        inputType="file",
+        path="/tmp/test_m2m_3.csv"
+    )
+    await dataset.insert()
+    
+    # Call without user parameter (M2M style)
+    result = await dataset_service.get_dataset("test-dataset-m2m-3")
+    
+    # Should get dataset without permission check
+    assert result is not None
+    assert result.id == "test-dataset-m2m-3"
+    assert result.name == "M2M Dataset 3"

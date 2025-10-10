@@ -63,48 +63,84 @@ class DatasetService(metaclass=SingletonMeta):
     def pdcChainHeaders(self, value):
         pdc_chain_headers_var.set(value)
 
-    async def get_datasets(self, user: User) -> List[Dataset]:
-        """Retrieve all datasets accessible by user"""
+    async def get_datasets(self, user: Optional[User] = None) -> List[Dataset]:
+        """
+        Retrieve datasets with optional permission filtering.
+        
+        Args:
+            user: User requesting access. If None, returns all datasets (for M2M calls)
+            
+        Returns:
+            List of Dataset objects
+            
+        Raises:
+            HTTPException: 500 on error
+        """
         try:
-            logger.info(f"Getting datasets for user: {user.username}")
+            if user:
+                logger.info(f"Getting datasets for user: {user.username}")
 
-            # Admin can see all datasets
-            if user.role == UserRole.ADMIN:
-                datasets = await Dataset.find().to_list()
-                logger.info(f"Admin retrieved {len(datasets)} datasets")
+                # Admin can see all datasets
+                if user.role == UserRole.ADMIN:
+                    datasets = await Dataset.find().to_list()
+                    logger.info(f"Admin retrieved {len(datasets)} datasets")
+                    return datasets
+                
+                # Regular user - filter by owned + shared
+                dataset_ids = user.owned_datasets + user.shared_datasets
+                if not dataset_ids:
+                    logger.info(f"User {user.username} has no datasets")
+                    return []
+                
+                datasets = await Dataset.find({"_id": {"$in": dataset_ids}}).to_list()
+                logger.info(f"User {user.username} retrieved {len(datasets)} datasets")
                 return datasets
-            
-            # Regular user - filter by owned + shared
-            dataset_ids = user.owned_datasets + user.shared_datasets
-            if not dataset_ids:
-                logger.info(f"User {user.username} has no datasets")
-                return []
-            
-            datasets = await Dataset.find({"_id": {"$in": dataset_ids}}).to_list()
-            logger.info(f"User {user.username} retrieved {len(datasets)} datasets")
-            return datasets
+            else:
+                # System call - return all datasets
+                logger.info("System getting all datasets (no permission filtering)")
+                datasets = await Dataset.find().to_list()
+                logger.info(f"System retrieved {len(datasets)} datasets")
+                return datasets
             
         except Exception as e:
             logger.error(f"Error in get_datasets: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def get_dataset(self, id: str, user: User) -> Dataset:
-        """Retrieve a single dataset by ID with permission check"""
+    async def get_dataset(self, id: str, user: Optional[User] = None) -> Dataset:
+        """
+        Retrieve a single dataset by ID with optional permission check.
+        
+        Args:
+            id: Dataset ID to retrieve
+            user: User requesting access. If None, permission check is skipped (for M2M calls)
+            
+        Returns:
+            Dataset object
+            
+        Raises:
+            HTTPException: 404 if not found, 403 if access denied, 500 on error
+        """
         try:
-            logger.info(f"User {user.username} fetching dataset with ID: {id}")
+            if user:
+                logger.info(f"User {user.username} fetching dataset with ID: {id}")
+            else:
+                logger.info(f"System fetching dataset with ID: {id} (no permission check)")
             
             # Get dataset
             dataset = await Dataset.get(id, with_children=True)
             if not dataset:
                 raise HTTPException(status_code=404, detail="Dataset not found")
             
-            # Check permission using user_service
-            can_access = await self.user_service.can_access_dataset(user, id)
-            if not can_access:
-                logger.warning(f"User {user.username} denied access to dataset {id}")
-                raise HTTPException(status_code=403, detail="Access denied")
+            # Only check permissions if user is provided
+            if user:
+                can_access = await self.user_service.can_access_dataset(user, id)
+                if not can_access:
+                    logger.warning(f"User {user.username} denied access to dataset {id}")
+                    raise HTTPException(status_code=403, detail="Access denied")
+                logger.info(f"User {user.username} successfully accessed dataset: {dataset.name}")
+            else:
+                logger.info(f"System successfully accessed dataset: {dataset.name}")
             
-            logger.info(f"User {user.username} successfully accessed dataset: {dataset.name}")
             return dataset
             
         except HTTPException:

@@ -18,48 +18,84 @@ class WorkflowService(metaclass=SingletonMeta):
         self.user_service = UserService()
         logger.info("WorkflowService initialized")
 
-    async def get_workflows(self, user: User) -> List[IProject]:
-        """Retrieve all workflows accessible by user"""
+    async def get_workflows(self, user: Optional[User] = None) -> List[IProject]:
+        """
+        Retrieve workflows with optional permission filtering.
+        
+        Args:
+            user: User requesting access. If None, returns all workflows (for M2M calls)
+            
+        Returns:
+            List of IProject objects
+            
+        Raises:
+            HTTPException: 500 on error
+        """
         try:
-            logger.info(f"Getting workflows for user: {user.username}")
+            if user:
+                logger.info(f"Getting workflows for user: {user.username}")
 
-            # Admin can see all workflows
-            if user.role == UserRole.ADMIN:
-                workflows = await IProject.find_all().to_list()
-                logger.info(f"Admin retrieved {len(workflows)} workflows")
+                # Admin can see all workflows
+                if user.role == UserRole.ADMIN:
+                    workflows = await IProject.find_all().to_list()
+                    logger.info(f"Admin retrieved {len(workflows)} workflows")
+                    return workflows
+                
+                # Regular user - filter by owned + shared
+                workflow_ids = user.owned_workflows + user.shared_workflows
+                if not workflow_ids:
+                    logger.info(f"User {user.username} has no workflows")
+                    return []
+                
+                workflows = await IProject.find({"_id": {"$in": workflow_ids}}).to_list()
+                logger.info(f"User {user.username} retrieved {len(workflows)} workflows")
                 return workflows
-            
-            # Regular user - filter by owned + shared
-            workflow_ids = user.owned_workflows + user.shared_workflows
-            if not workflow_ids:
-                logger.info(f"User {user.username} has no workflows")
-                return []
-            
-            workflows = await IProject.find({"_id": {"$in": workflow_ids}}).to_list()
-            logger.info(f"User {user.username} retrieved {len(workflows)} workflows")
-            return workflows
+            else:
+                # System call - return all workflows
+                logger.info("System getting all workflows (no permission filtering)")
+                workflows = await IProject.find_all().to_list()
+                logger.info(f"System retrieved {len(workflows)} workflows")
+                return workflows
             
         except Exception as e:
             logger.error(f"Error retrieving workflows: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to retrieve workflows")
 
-    async def get_workflow(self, workflow_id: str, user: User) -> IProject:
-        """Retrieve a workflow by its ID with permission check"""
+    async def get_workflow(self, workflow_id: str, user: Optional[User] = None) -> IProject:
+        """
+        Retrieve a workflow by its ID with optional permission check.
+        
+        Args:
+            workflow_id: Workflow ID to retrieve
+            user: User requesting access. If None, permission check is skipped (for M2M calls)
+            
+        Returns:
+            IProject object
+            
+        Raises:
+            HTTPException: 404 if not found, 403 if access denied, 500 on error
+        """
         try:
-            logger.info(f"User {user.username} fetching workflow with ID: {workflow_id}")
+            if user:
+                logger.info(f"User {user.username} fetching workflow with ID: {workflow_id}")
+            else:
+                logger.info(f"System fetching workflow with ID: {workflow_id} (no permission check)")
             
             # Get workflow
             workflow = await IProject.get(workflow_id)
             if not workflow:
                 raise HTTPException(status_code=404, detail="Workflow not found")
             
-            # Check permission using user_service
-            can_access = await self.user_service.can_access_workflow(user, workflow_id)
-            if not can_access:
-                logger.warning(f"User {user.username} denied access to workflow {workflow_id}")
-                raise HTTPException(status_code=403, detail="Access denied")
+            # Only check permissions if user is provided
+            if user:
+                can_access = await self.user_service.can_access_workflow(user, workflow_id)
+                if not can_access:
+                    logger.warning(f"User {user.username} denied access to workflow {workflow_id}")
+                    raise HTTPException(status_code=403, detail="Access denied")
+                logger.info(f"User {user.username} successfully accessed workflow: {workflow.name}")
+            else:
+                logger.info(f"System successfully accessed workflow: {workflow.name}")
             
-            logger.info(f"User {user.username} successfully accessed workflow: {workflow.name}")
             return workflow
             
         except HTTPException:

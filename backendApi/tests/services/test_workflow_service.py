@@ -497,3 +497,56 @@ async def test_delete_workflow_exception_handling(workflow_service_instance, moc
         
         # Should return False when there's an exception, not raise
         assert result is False
+
+
+# ============================================================================
+# M2M (Machine-to-Machine) Tests - Optional User Parameter
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_get_workflows_without_user(workflow_service_instance):
+    """Test that get_workflows works without user (returns all workflows for M2M calls)"""
+    # Create test workflows
+    workflow1 = IProject(
+        id="test-workflow-m2m-1",
+        name="M2M Workflow 1",
+        revision="1.0",
+        pschema=ISchema(nodes=[], connections=[], revision="1.0")
+    )
+    workflow2 = IProject(
+        id="test-workflow-m2m-2",
+        name="M2M Workflow 2",
+        revision="1.0",
+        pschema=ISchema(nodes=[], connections=[], revision="1.0")
+    )
+    await workflow1.insert()
+    await workflow2.insert()
+    
+    # Call without user parameter (M2M style)
+    workflows = await workflow_service_instance.get_workflows()
+    
+    # Should get all workflows without permission filtering
+    assert len(workflows) >= 2
+    assert any(w.id == "test-workflow-m2m-1" for w in workflows)
+    assert any(w.id == "test-workflow-m2m-2" for w in workflows)
+
+
+@pytest.mark.asyncio
+async def test_get_workflow_without_user(workflow_service_instance):
+    """Test that get_workflow works without user (no permission check for M2M calls)"""
+    # Create test workflow
+    workflow = IProject(
+        id="test-workflow-m2m-3",
+        name="M2M Workflow 3",
+        revision="1.0",
+        pschema=ISchema(nodes=[], connections=[], revision="1.0")
+    )
+    await workflow.insert()
+    
+    # Call without user parameter (M2M style)
+    result = await workflow_service_instance.get_workflow("test-workflow-m2m-3")
+    
+    # Should get workflow without permission check
+    assert result is not None
+    assert result.id == "test-workflow-m2m-3"
+    assert result.name == "M2M Workflow 3"
