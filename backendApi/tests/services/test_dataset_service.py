@@ -223,31 +223,51 @@ async def test_context_isolation(dataset_service):
 # ===========================
 
 @pytest.mark.asyncio
-async def test_get_datasets_success(dataset_service, sample_file_dataset, sample_mysql_dataset):
+async def test_get_datasets_success(dataset_service, sample_file_dataset, sample_mysql_dataset, mock_user):
     file_ds = sample_file_dataset
     mysql_ds = sample_mysql_dataset
-    result = await dataset_service.get_datasets()
+    # Assign ownership to mock_user
+    file_ds.owner_id = mock_user.id
+    mysql_ds.owner_id = mock_user.id
+    mock_user.owned_datasets = [str(file_ds.id), str(mysql_ds.id)]
+    await file_ds.save()
+    await mysql_ds.save()
+    
+    result = await dataset_service.get_datasets(mock_user)
     assert len(result) == 2
     assert any(ds.name == "test_file" for ds in result)
     assert any(ds.name == "test_mysql" for ds in result)
 
 @pytest.mark.asyncio
-async def test_get_dataset_success(dataset_service, sample_file_dataset):
+async def test_get_dataset_success(dataset_service, sample_file_dataset, mock_user):
     dataset = sample_file_dataset
-    result = await dataset_service.get_dataset(str(dataset.id))
-    assert result is not None
-    assert result.name == "test_file"
-    assert result.type == "file"
+    # Assign ownership to mock_user
+    dataset.owner_id = mock_user.id
+    mock_user.owned_datasets = [str(dataset.id)]
+    await dataset.save()
+    
+    # Mock the permission check to return True
+    with patch.object(dataset_service.user_service, 'can_access_dataset', return_value=True):
+        result = await dataset_service.get_dataset(str(dataset.id), mock_user)
+        assert result is not None
+        assert result.name == "test_file"
+        assert result.type == "file"
 
 @pytest.mark.asyncio
-async def test_delete_dataset_success(dataset_service, sample_file_dataset):
+async def test_delete_dataset_success(dataset_service, sample_file_dataset, mock_user):
     dataset = sample_file_dataset
     dataset_id = str(dataset.id)
-    with patch.object(dataset_service, '_cleanup_file_dataset'):
-        result = await dataset_service.delete_dataset(dataset_id)
-    assert result is True
-    deleted_dataset = await Dataset.get(dataset.id)
-    assert deleted_dataset is None
+    # Assign ownership to mock_user
+    dataset.owner_id = mock_user.id
+    await dataset.save()
+    
+    # Mock the permission check to return True
+    with patch.object(dataset_service, '_cleanup_file_dataset'), \
+         patch.object(dataset_service.user_service, 'can_modify_dataset', return_value=True):
+        result = await dataset_service.delete_dataset(dataset_id, mock_user)
+        assert result is True
+        deleted_dataset = await Dataset.get(dataset.id)
+        assert deleted_dataset is None
 
 @pytest.mark.asyncio
 async def test_add_connection_already_exists(dataset_service, sample_file_dataset):
@@ -415,28 +435,30 @@ def test_get_df_file_content_folder(mock_folder, dataset_service, temp_directory
 # ===========================
 
 @pytest.mark.asyncio
-async def test_add_connection_file_dataset(dataset_service, temp_csv_file):
+async def test_add_connection_file_dataset(dataset_service, temp_csv_file, mock_user):
     dataset = await create_file_dataset_async(
         name="test_file_connection",
         filePath=temp_csv_file
     )
     with patch.object(dataset_service, '_process_file_dataset') as mock_process, \
-         patch.object(dataset_service, '_connection_exists', return_value=False) as mock_exists:
+         patch.object(dataset_service, '_connection_exists', return_value=False) as mock_exists, \
+         patch.object(dataset_service.user_service, 'assign_dataset_ownership') as mock_assign:
         mock_process.return_value = dataset
-        result = await dataset_service.add_connection(dataset)
+        result = await dataset_service.add_connection(dataset, mock_user)
         assert result["status"] == "Connection added"
         mock_exists.assert_called_once()
         mock_process.assert_called_once()
+        mock_assign.assert_called_once_with(mock_user, dataset)
 
 @pytest.mark.asyncio
-async def test_add_connection_already_exists(dataset_service, sample_file_dataset):
+async def test_add_connection_already_exists(dataset_service, sample_file_dataset, mock_user):
     existing_dataset = sample_file_dataset
     dataset = await create_file_dataset_async(
         name="test_file",
         filePath="/same/path.csv"
     )
     with patch.object(dataset_service, '_connection_exists', return_value=True):
-        result = await dataset_service.add_connection(dataset)
+        result = await dataset_service.add_connection(dataset, mock_user)
         assert result["status"] == "Dataset already exists"
 
 @pytest.mark.asyncio
