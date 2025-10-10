@@ -57,6 +57,7 @@ async def lifespan(app: FastAPI):
         # Ensure admin user exists (create default admin if no users exist)
         logger.info("Checking for admin user...")
         user_service = UserService()
+        admin = None
         try:
             admin = await user_service.ensure_admin_exists()
             if admin:
@@ -66,12 +67,15 @@ async def lifespan(app: FastAPI):
         
         # Run migration if config.ini exists
         if os.path.exists("./app/config.ini"):
-            logger.info("Config.ini found, starting migration...")
-            migration_success = await MigrationService.migrate_from_config_ini()
-            if migration_success:
-                logger.info("Migration completed successfully")
+            if admin:
+                logger.info("Config.ini found, starting migration...")
+                migration_success = await MigrationService.migrate_from_config_ini(admin)
+                if migration_success:
+                    logger.info("Migration completed successfully")
+                else:
+                    logger.warning("Migration completed with warnings")
             else:
-                logger.warning("Migration completed with warnings")
+                logger.error("Cannot run migration: Admin user not available")
         else:
             logger.info("No config.ini found, skipping migration")
         
