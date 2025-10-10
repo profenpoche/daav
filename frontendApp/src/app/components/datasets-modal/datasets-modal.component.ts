@@ -157,7 +157,12 @@ export class DatasetsModalComponent implements OnChanges {
   addConnection($event: any) {
     // send to FastAPI
     if (!this.dataset) {
-      this.datasetService.addDataset(this.formDatabase.value).subscribe(() => {
+      // Clean form data: exclude 'file' field (File object with fakepath)
+      // Only send 'filePath' which contains the URN from uploadFile()
+      const formData = { ...this.formDatabase.value };
+      delete formData.file; // Remove File object to avoid sending fakepath
+
+      this.datasetService.addDataset(formData).subscribe(() => {
         this.datasetService.get();
       });
     } else {
@@ -165,7 +170,8 @@ export class DatasetsModalComponent implements OnChanges {
       formKeys.forEach((fK) => {
         let key = fK[0];
         let value = fK[1];
-        if (key in this.dataset) {
+        // Skip 'file' field when editing
+        if (key !== 'file' && key in this.dataset) {
           this.dataset[key] = value;
         }
       });

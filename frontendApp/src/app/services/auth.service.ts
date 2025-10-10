@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
@@ -32,7 +32,8 @@ export class AuthService {
     private http: HttpClient,
     private tokenService: TokenService,
     private baseService: BaseService,
-    private router: Router
+    private router: Router,
+    private injector: Injector
   ) {
     this.currentUserSubject = new BehaviorSubject<User | null>(null);
     this.currentUser$ = this.currentUserSubject.asObservable();
@@ -59,9 +60,32 @@ export class AuthService {
 
           // Load user info
           await this.loadCurrentUser();
+
+          // Load user's datasets and workflows after successful login
+          await this.loadUserData();
         }),
         catchError(this.handleError)
       );
+  }
+
+  /**
+   * Load user data (datasets, workflows) after authentication
+   */
+  private async loadUserData(): Promise<void> {
+    try {
+      // Lazy injection to avoid circular dependency
+      const { DatasetService } = await import('./dataset.service');
+      const { WorkflowService } = await import('./worflow.service');
+
+      const datasetService = this.injector.get(DatasetService);
+      const workflowService = this.injector.get(WorkflowService);
+
+      // Reload datasets and workflows with authentication
+      datasetService.get();
+      workflowService.getWorkflows().subscribe();
+    } catch (error) {
+      console.warn('Failed to load user data:', error);
+    }
   }
 
   /**
@@ -78,8 +102,26 @@ export class AuthService {
    * Logout user
    */
   async logout(): Promise<void> {
+    // Clear tokens
     await this.tokenService.clearTokens();
+
+    // Clear user state
     this.currentUserSubject.next(null);
+
+    // Clear cached data from services (lazy injection to avoid circular dependency)
+    try {
+      const { DatasetService } = await import('./dataset.service');
+      const { WorkflowService } = await import('./worflow.service');
+
+      const datasetService = this.injector.get(DatasetService);
+      const workflowService = this.injector.get(WorkflowService);
+
+      datasetService.clearDatasets();
+      workflowService.clearWorkflows();
+    } catch (error) {
+      console.warn('Failed to clear service caches:', error);
+    }
+
     // Navigate to login page
     this.router.navigate(['/login'], { replaceUrl: true });
   }
@@ -151,6 +193,9 @@ export class AuthService {
 
       if (user) {
         this.currentUserSubject.next(user);
+
+        // Load user data after successfully loading user info
+        await this.loadUserData();
       }
     } catch (error) {
       console.error('Failed to load current user:', error);

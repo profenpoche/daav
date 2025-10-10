@@ -65,4 +65,11 @@ export class WorkflowService extends BaseService {
   executeNodeJson(workflow: Project, nodeId: string): Observable<Project> {
     return this.http.post<Project>(`${this.apiUrl}/execute_node/${nodeId}`, workflow);
   }
+
+  /**
+   * Clear all workflows from cache (called on logout)
+   */
+  clearWorkflows(): void {
+    this.workflowsSignals.set([]);
+  }
 }
