@@ -29,6 +29,7 @@ from app.models.interface.node_data import NodeDataPandasDf
 from app.utils.utils import convert_size, folder, generate_pandas_schema
 from app.utils.security import PathSecurityValidator, FileAccessController
 from app.models.interface.pdc_chain_interface import PdcChainRequestData, PdcChainHeaders
+from app.config.security import SecurityConfig
 
 logger = logging.getLogger(__name__)
 
@@ -192,8 +193,7 @@ class DatasetService(metaclass=SingletonMeta):
             # SECURITY: Validate paths before deletion
             if dataset.folder:
                 try:
-                    validated_folder = PathSecurityValidator.validate_file_path(dataset.folder)
-                    from app.config.security import SecurityConfig
+                    validated_folder = PathSecurityValidator.validate_file_path(dataset.folder)                    
                     allowed_dirs = SecurityConfig.get_allowed_base_directories()
                     if not FileAccessController.can_read_file(validated_folder, allowed_dirs):
                         logger.error(f"Access denied for cleanup of folder: {dataset.folder}")
@@ -210,7 +210,6 @@ class DatasetService(metaclass=SingletonMeta):
             elif dataset.filePath:
                 try:
                     validated_file = PathSecurityValidator.validate_file_path(dataset.filePath)
-                    from app.config.security import SecurityConfig
                     allowed_dirs = SecurityConfig.get_allowed_base_directories()
                     if not FileAccessController.can_read_file(validated_file, allowed_dirs):
                         logger.error(f"Access denied for cleanup of file: {dataset.filePath}")
@@ -306,7 +305,6 @@ class DatasetService(metaclass=SingletonMeta):
                 # SECURITY: Validate file path before processing
                 try:
                     validated_path = PathSecurityValidator.validate_file_path(connection.filePath)
-                    from app.config.security import SecurityConfig
                     allowed_dirs = SecurityConfig.get_allowed_base_directories()
                     if not FileAccessController.can_read_file(validated_path, allowed_dirs):
                         logger.error(f"Access denied to file path: {connection.filePath}")
@@ -451,7 +449,6 @@ class DatasetService(metaclass=SingletonMeta):
         if folder:
             try:
                 validated_folder = PathSecurityValidator.validate_file_path(folder)
-                from app.config.security import SecurityConfig
                 allowed_dirs = SecurityConfig.get_allowed_base_directories()
                 if not FileAccessController.can_read_file(validated_folder, allowed_dirs):
                     logger.error(f"Access denied to folder: {folder}")
@@ -621,7 +618,6 @@ class DatasetService(metaclass=SingletonMeta):
             try:
                 validated_path = PathSecurityValidator.validate_file_path(path)
                 # Additional check: verify path is within allowed directories
-                from app.config.security import SecurityConfig
                 allowed_dirs = SecurityConfig.get_allowed_base_directories()
                 if not FileAccessController.can_read_file(validated_path, allowed_dirs):
                     raise HTTPException(status_code=403, detail=f"Access denied to path: {path}")
