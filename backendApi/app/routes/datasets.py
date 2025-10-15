@@ -92,10 +92,12 @@ async def create_dataset(dataset: DatasetUnion, current_user: CurrentUser):
 @router.post("/uploadFile")
 async def receive_file(
     file: list[UploadFile] | UploadFile,
+    current_user: CurrentUser,
     folder: str = None
 ) -> list:
     """Upload one or multiple files using the configured upload directory with security validation"""
     try:
+        logger.info(f"User {current_user.username} uploading file(s)")
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
         # Si file est une liste, on boucle, sinon on le met dans une liste
@@ -103,7 +105,7 @@ async def receive_file(
         results = []
 
         for f in files:
-            result = await _save_upload_file(f, folder)
+            result = await _save_upload_file(f, current_user, folder)
             results.append(result)
 
         # Retourne la liste si plusieurs fichiers, sinon un seul dict
@@ -115,8 +117,8 @@ async def receive_file(
         logger.error(f"Error uploading file(s): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to upload file(s): {str(e)}")
 
-async def _save_upload_file(file: UploadFile, name: str = None) -> dict:
-    """Traitement et sauvegarde d'un seul fichier UploadFile"""
+async def _save_upload_file(file: UploadFile, current_user: CurrentUser, folder: str = None) -> dict:
+    """Traitement et sauvegarde d'un seul fichier UploadFile avec isolation par utilisateur"""
     # Validation de sécurité du nom de fichier
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
@@ -132,16 +134,31 @@ async def _save_upload_file(file: UploadFile, name: str = None) -> dict:
     filename_parts = safe_filename.split('/')
     final_filename = filename_parts[-1]
 
-    if len(filename_parts) > 1:
+    # create folder per user (user_id) to isolate files
+    user_dir = UPLOAD_DIR / str(current_user.id)
+    user_dir.mkdir(parents=True, exist_ok=True)
+
+    # If an additional folder is specified (folder parameter)
+    if folder:
+        safe_folder = PathSecurityValidator.validate_filename(folder)
+        if '..' in safe_folder or safe_folder.startswith('/') or safe_folder.startswith('\\'):
+            raise HTTPException(status_code=400, detail="Invalid folder name")
+        sub_dir = user_dir / safe_folder
+        sub_dir.mkdir(exist_ok=True)
+        base_dir = sub_dir
+    # If the filename contains a path (old behavior for compatibility)
+    elif len(filename_parts) > 1:
         dir_name = filename_parts[0]
         safe_dir_name = PathSecurityValidator.validate_filename(dir_name)
         if '..' in safe_dir_name or safe_dir_name.startswith('/') or safe_dir_name.startswith('\\'):
             raise HTTPException(status_code=400, detail="Invalid directory name")
-        sub_dir = UPLOAD_DIR / safe_dir_name
+        sub_dir = user_dir / safe_dir_name
         sub_dir.mkdir(exist_ok=True)
-        filepath = sub_dir / (name if name is not None else final_filename)
+        base_dir = sub_dir
     else:
-        filepath = UPLOAD_DIR / (name if name is not None else final_filename)
+        base_dir = user_dir
+
+    filepath = base_dir / final_filename
 
     try:
         validated_path = PathSecurityValidator.validate_file_path(str(filepath), str(UPLOAD_DIR))
@@ -159,10 +176,10 @@ async def _save_upload_file(file: UploadFile, name: str = None) -> dict:
     with open(validated_path, 'wb') as f:
         f.write(content)
 
-    logger.info(f"File uploaded successfully: {validated_path}")
-    result = {"filepath": str(validated_path)}
-    if 'sub_dir' in locals():
-        result["folder"] = str(sub_dir)
+    logger.info(f"User {current_user.username} uploaded file successfully: {validated_path}")
+    result = {"filepath": str(validated_path), "user_dir": str(user_dir)}
+    if base_dir != user_dir:
+        result["folder"] = str(base_dir)
     return result
 
 @router.post("/getContentDataset", response_model=DatasetContentResponse)
