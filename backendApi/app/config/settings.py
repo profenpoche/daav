@@ -119,8 +119,14 @@ class Settings(BaseSettings):
     max_file_size: Union[int, str] = 100 * 1024 * 1024  # 100MB
 
     directory_white_list : Union[List[str], str] = []
+    
+    # Route Access Control - Domain whitelist only
+    domain_whitelist: Union[List[str], str] = Field(
+        default=[],
+        description="List of whitelisted domains that can access routes without authentication"
+    )
 
-    @field_validator('directory_white_list','cors_origins', mode='before')
+    @field_validator('directory_white_list', 'cors_origins', 'domain_whitelist', mode='before')
     @classmethod
     def parse_str_list_tolist(cls, v):
         """Parse from string or list to list"""
@@ -136,7 +142,7 @@ class Settings(BaseSettings):
                 except json.JSONDecodeError:
                     return [v]  # Fallback sur une seule origine
             else:
-                return [v]  # Une seule origine
+                return [v] if v else []  # Une seule origine ou liste vide
         return v  # Déjà une liste
 
     @field_validator('max_file_size', mode='before')

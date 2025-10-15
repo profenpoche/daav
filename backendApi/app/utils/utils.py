@@ -2,7 +2,8 @@ import base64
 import json
 import logging
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
+from urllib.parse import urlparse
 
 import duckdb
 import pandas as pd
@@ -11,7 +12,7 @@ from app.config.settings import settings
 from app.models.interface.dataset_interface import Pagination, FileContentResponse
 from app.models.interface.dataset_schema import PandasColumn, PandasSchema
 from app.utils.security import PathSecurityValidator
-from fastapi import HTTPException
+from fastapi import HTTPException, Request, Header
 
 logger = logging.getLogger(__name__)
 
@@ -532,3 +533,83 @@ def filter_data_with_duckdb(filepath: str, select: Optional[str] = None, where: 
     except Exception as e:
         logger.error(f"Error filtering data with DuckDB: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error filtering data: {str(e)}")
+
+
+def verify_route_access(
+    request: Request,
+    authorization: Optional[str] = None,
+    api_keys: Optional[List[Union[str, Dict[str, str]]]] = None
+) -> bool:
+    """
+    Verify route access using domain whitelist or API keys.
+    
+    Checks in order:
+    1. Domain whitelist (from env DOMAIN_WHITELIST)
+    2. API keys (mixed list of Bearer tokens and custom headers)
+    
+    Args:
+        request: FastAPI Request object
+        authorization: Authorization header (format: "Bearer <token>")
+        api_keys: List of mixed items:
+            - str: Bearer token (e.g., "token123")
+            - dict: Custom header (e.g., {"X-API-Key": "value"})
+        
+    Returns:
+        True if access granted
+        
+    Raises:
+        HTTPException: 403 if access denied
+        
+    Examples:
+        verify_route_access(request)  # Whitelist only
+        verify_route_access(request, auth, api_keys=["token1", "token2"])  # Bearer tokens
+        verify_route_access(request, api_keys=[{"X-Key": "val"}])  # Custom headers
+        verify_route_access(request, auth, api_keys=["token1", {"X-Key": "val"}])  # Mixed
+    """
+    
+    # Check domain whitelist from env
+    if settings.domain_whitelist:
+        origin = request.headers.get("origin") or request.headers.get("referer")
+        
+        if origin:
+            parsed = urlparse(origin)
+            domain = parsed.netloc or parsed.path.split('/')[0]
+            
+            for whitelisted_domain in settings.domain_whitelist:
+                if domain == whitelisted_domain or domain.endswith(f".{whitelisted_domain}"):
+                    logger.info(f"Route access granted via domain whitelist: {domain}")
+                    return True
+    
+    # Deny if no api_keys provided
+    if not api_keys:
+        logger.warning(f"Route access denied for request from {request.client.host if request.client else 'unknown'}")
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied. Valid authentication required."
+        )
+    
+    # Check each api_key (can be string or dict)
+    request_headers = dict(request.headers)
+    
+    for api_key in api_keys:
+        # String = Bearer token
+        if isinstance(api_key, str):
+            if authorization and authorization.startswith("Bearer "):
+                token = authorization.replace("Bearer ", "").strip()
+                if token == api_key:
+                    logger.info(f"Route access granted via Bearer token")
+                    return True
+        
+        # Dict = Custom header
+        elif isinstance(api_key, dict):
+            for header_name, expected_value in api_key.items():
+                if header_name in request_headers and request_headers[header_name] == expected_value:
+                    logger.info(f"Route access granted via custom header: {header_name}")
+                    return True
+    
+    # Access denied
+    logger.warning(f"Route access denied for request from {request.client.host if request.client else 'unknown'}")
+    raise HTTPException(
+        status_code=403,
+        detail="Access denied. Valid authentication required."
+    )

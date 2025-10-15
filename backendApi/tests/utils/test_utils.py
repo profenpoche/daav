@@ -9,8 +9,9 @@ import base64
 import math
 from unittest.mock import Mock, patch, mock_open, MagicMock
 from datetime import datetime, timezone
+from fastapi import Request, HTTPException
 
-from app.utils.utils import convert_size, folder, generate_pandas_schema, slice_generator, decodeDictionary
+from app.utils.utils import convert_size, folder, generate_pandas_schema, slice_generator, decodeDictionary, verify_route_access
 from app.models.interface.dataset_interface import Pagination, FileContentResponse
 from app.models.interface.dataset_schema import PandasColumn, PandasSchema
 
@@ -445,6 +446,276 @@ class TestDecodeDictionary:
         # Test with number
         result = decodeDictionary(123)
         assert result == 123
+
+
+class TestRouteAccessControl:
+    """Test suite for route access control"""
+    
+    def setup_method(self):
+        """Setup test fixtures"""
+        self.mock_request = Mock(spec=Request)
+        self.mock_request.client = Mock()
+        self.mock_request.client.host = "192.168.1.1"
+        self.mock_request.headers = {}
+    
+    @patch('app.utils.utils.settings')
+    def test_domain_whitelist_with_origin_header(self, mock_settings):
+        """Test access granted via domain whitelist using Origin header"""
+        mock_settings.domain_whitelist = ["example.com", "api.example.com"]
+        
+        self.mock_request.headers = {"origin": "https://example.com"}
+        
+        result = verify_route_access(self.mock_request)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_domain_whitelist_with_referer_header(self, mock_settings):
+        """Test access granted via domain whitelist using Referer header"""
+        mock_settings.domain_whitelist = ["example.com"]
+        
+        self.mock_request.headers = {"referer": "https://example.com/page"}
+        
+        result = verify_route_access(self.mock_request)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_domain_whitelist_subdomain(self, mock_settings):
+        """Test access granted for subdomain of whitelisted domain"""
+        mock_settings.domain_whitelist = ["example.com"]
+        
+        self.mock_request.headers = {"origin": "https://api.example.com"}
+        
+        result = verify_route_access(self.mock_request)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_domain_not_in_whitelist_no_api_keys(self, mock_settings):
+        """Test access denied when domain not in whitelist and no api_keys"""
+        mock_settings.domain_whitelist = ["example.com"]
+        
+        self.mock_request.headers = {"origin": "https://unauthorized.com"}
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request)
+        
+        assert exc_info.value.status_code == 403
+        assert "Access denied" in exc_info.value.detail
+    
+    @patch('app.utils.utils.settings')
+    def test_bearer_token_valid_list(self, mock_settings):
+        """Test access granted with valid Bearer token from list"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = ["secret-token-123", "another-token"]
+        authorization = "Bearer secret-token-123"
+        
+        result = verify_route_access(self.mock_request, authorization=authorization, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_bearer_token_invalid_list(self, mock_settings):
+        """Test access denied with invalid Bearer token"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = ["secret-token-123"]
+        authorization = "Bearer wrong-token"
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request, authorization=authorization, api_keys=api_keys)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_bearer_token_missing_bearer_prefix(self, mock_settings):
+        """Test access denied when Bearer prefix is missing"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = ["secret-token-123"]
+        authorization = "secret-token-123"  # Missing "Bearer "
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request, authorization=authorization, api_keys=api_keys)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_custom_header_valid_dict(self, mock_settings):
+        """Test access granted with valid custom header from dict"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = [{"X-API-Key": "my-secret-key"}, {"X-Auth": "token123"}]
+        self.mock_request.headers = {"X-API-Key": "my-secret-key"}
+        
+        result = verify_route_access(self.mock_request, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_custom_header_invalid_value(self, mock_settings):
+        """Test access denied with invalid custom header value"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = [{"X-API-Key": "my-secret-key"}]
+        self.mock_request.headers = {"X-API-Key": "wrong-value"}
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request, api_keys=api_keys)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_custom_header_missing(self, mock_settings):
+        """Test access denied when custom header is missing"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = [{"X-API-Key": "my-secret-key"}]
+        self.mock_request.headers = {}  # No headers
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request, api_keys=api_keys)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_multiple_custom_headers_one_valid(self, mock_settings):
+        """Test access granted with one of multiple custom headers"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = [
+            {"X-API-Key": "secret1"},
+            {"X-Custom-Auth": "secret2"},
+            {"X-Service-Token": "secret3"}
+        ]
+        
+        self.mock_request.headers = {
+            "X-API-Key": "wrong",
+            "X-Custom-Auth": "secret2"  # This one is valid
+        }
+        
+        result = verify_route_access(self.mock_request, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_mixed_api_keys_bearer_and_custom(self, mock_settings):
+        """Test access with mixed Bearer tokens and custom headers"""
+        mock_settings.domain_whitelist = []
+        
+        # Mixed list: strings (Bearer) + dicts (custom headers)
+        api_keys = [
+            "bearer-token-123",
+            {"X-API-Key": "custom-key-456"},
+            "another-bearer-789",
+            {"X-Service-Token": "service-xyz"}
+        ]
+        
+        # Test with Bearer token
+        authorization = "Bearer bearer-token-123"
+        result = verify_route_access(self.mock_request, authorization=authorization, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_mixed_api_keys_custom_header_success(self, mock_settings):
+        """Test access with custom header in mixed list"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = [
+            "bearer-token-123",
+            {"X-API-Key": "custom-key-456"}
+        ]
+        
+        self.mock_request.headers = {"X-API-Key": "custom-key-456"}
+        result = verify_route_access(self.mock_request, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_priority_domain_over_token(self, mock_settings):
+        """Test that domain whitelist is checked before tokens"""
+        mock_settings.domain_whitelist = ["example.com"]
+        
+        self.mock_request.headers = {"origin": "https://example.com"}
+        # Don't provide api_keys - should still pass via domain
+        
+        result = verify_route_access(self.mock_request)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_no_whitelist_and_no_api_keys(self, mock_settings):
+        """Test access denied when no whitelist and no api_keys"""
+        mock_settings.domain_whitelist = []
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_domain_fails_but_token_succeeds(self, mock_settings):
+        """Test access via token when domain not whitelisted"""
+        mock_settings.domain_whitelist = ["other-domain.com"]
+        
+        self.mock_request.headers = {"origin": "https://example.com"}
+        api_keys = ["valid-token"]
+        authorization = "Bearer valid-token"
+        
+        result = verify_route_access(self.mock_request, authorization=authorization, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_empty_authorization_header_with_list(self, mock_settings):
+        """Test access denied with empty authorization header"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = ["valid-token"]
+        authorization = ""
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request, authorization=authorization, api_keys=api_keys)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_bearer_token_with_extra_spaces(self, mock_settings):
+        """Test Bearer token validation handles extra spaces"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = ["secret-token"]
+        authorization = "Bearer   secret-token   "  # Extra spaces
+        
+        result = verify_route_access(self.mock_request, authorization=authorization, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_request_without_client(self, mock_settings):
+        """Test handling when request.client is None"""
+        mock_settings.domain_whitelist = []
+        
+        self.mock_request.client = None
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_whitelist_only_no_origin(self, mock_settings):
+        """Test access denied with whitelist but no origin header"""
+        mock_settings.domain_whitelist = ["example.com"]
+        
+        self.mock_request.headers = {}  # No origin or referer
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_api_keys_none_explicit(self, mock_settings):
+        """Test with api_keys=None explicitly passed"""
+        mock_settings.domain_whitelist = []
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request, api_keys=None)
+        
+        assert exc_info.value.status_code == 403
 
 
 if __name__ == "__main__":
