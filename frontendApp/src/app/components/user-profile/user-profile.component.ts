@@ -15,6 +15,7 @@ export class UserProfileComponent implements OnInit {
   showChangePassword = false;
   changePasswordForm!: FormGroup;
   credentialForm!: FormGroup;
+  editCredentialForm!: FormGroup;
   loading = false;
 
   // Admin user management
@@ -26,7 +27,6 @@ export class UserProfileComponent implements OnInit {
   // Credentials management
   showCredentials = false;
   editingCredential: string | null = null;
-  editCredentialValue = '';
 
   constructor(
     private formBuilder: FormBuilder,
@@ -58,6 +58,11 @@ export class UserProfileComponent implements OnInit {
     this.credentialForm = this.formBuilder.group({
       credentialKey: ['', [Validators.required]],
       credentialValue: ['', [Validators.required]]
+    });
+
+    // Initialize edit credential form
+    this.editCredentialForm = this.formBuilder.group({
+      credentialValueEdit: ['', [Validators.required]]
     });
   }
 
@@ -284,6 +289,13 @@ export class UserProfileComponent implements OnInit {
   }
 
   /**
+   * Track function for credentials ngFor to prevent unnecessary re-renders
+   */
+  trackByCredentialKey(index: number, credential: {key: string, value: string}): string {
+    return credential.key;
+  }
+
+  /**
    * Add new credential
    */
   async addCredential() {
@@ -348,7 +360,9 @@ export class UserProfileComponent implements OnInit {
    */
   startEditCredential(key: string) {
     this.editingCredential = key;
-    this.editCredentialValue = this.user?.config?.credentials?.[key] || '';
+    const currentValue = this.user?.config?.credentials?.[key] || '';
+    this.editCredentialForm.reset();
+    this.editCredentialForm.get('credentialValueEdit')?.setValue(currentValue);
   }
 
   /**
@@ -356,15 +370,20 @@ export class UserProfileComponent implements OnInit {
    */
   cancelEditCredential() {
     this.editingCredential = null;
-    this.editCredentialValue = '';
+    this.editCredentialForm.reset();
   }
 
   /**
    * Save edited credential
    */
   async saveEditedCredential() {
-    if (!this.editingCredential || !this.editCredentialValue.trim()) {
-      await this.showToast('Value is required', 'warning');
+    if (this.editCredentialForm.invalid) {
+      this.markFormGroupTouched(this.editCredentialForm);
+      return;
+    }
+
+    if (!this.editingCredential) {
+      await this.showToast('No credential selected for editing', 'warning');
       return;
     }
 
@@ -373,6 +392,7 @@ export class UserProfileComponent implements OnInit {
       return;
     }
 
+    const { credentialValueEdit } = this.editCredentialForm.value;
     const loading = await this.loadingController.create({
       message: 'Updating credential...',
     });
@@ -382,7 +402,7 @@ export class UserProfileComponent implements OnInit {
 
     try {
       // Update credential value
-      this.user.config.credentials[this.editingCredential] = this.editCredentialValue;
+      this.user.config.credentials[this.editingCredential] = credentialValueEdit;
 
       // Update user via API
       this.authService.updateUser(this.user.id, { config: this.user.config }).subscribe({
@@ -471,12 +491,12 @@ export class UserProfileComponent implements OnInit {
     await alert.present();
   }
 
-  /**
+    /**
    * Reset credential editing state
    */
   private resetCredentialForm() {
     this.editingCredential = null;
-    this.editCredentialValue = '';
+    this.editCredentialForm.reset();
   }
 
   // ==================== ADMIN USER MANAGEMENT ====================

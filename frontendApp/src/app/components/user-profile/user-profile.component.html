@@ -87,12 +87,8 @@
       </ion-card-header>
 
       <ion-card-content>
-        <ion-button
-          expand="block"
-          fill="outline"
-          (click)="toggleChangePassword()"
-          [color]="showChangePassword ? 'medium' : 'primary'"
-        >
+        <ion-button expand="block" fill="outline" (click)="toggleChangePassword()"
+          [color]="showChangePassword ? 'medium' : 'primary'">
           <ion-icon [name]="showChangePassword ? 'chevron-up-outline' : 'lock-closed-outline'" slot="start"></ion-icon>
           {{ showChangePassword ? 'Cancel' : 'Change Password' }}
         </ion-button>
@@ -102,52 +98,30 @@
           <form [formGroup]="changePasswordForm" (ngSubmit)="onChangePassword()">
             <!-- Current Password -->
             <ion-item class="input-item" lines="none">
-              <ion-input
-                fill="outline"
-                label="Current Password"
-                labelPlacement="floating"
-                formControlName="currentPassword"
-                type="password"
-                autocomplete="current-password"
-              >
+              <ion-input fill="outline" label="Current Password" labelPlacement="floating"
+                formControlName="currentPassword" type="password" autocomplete="current-password">
                 <ion-input-password-toggle slot="end"></ion-input-password-toggle>
               </ion-input>
             </ion-item>
 
             <!-- New Password -->
             <ion-item class="input-item" lines="none">
-              <ion-input
-                fill="outline"
-                label="New Password"
-                labelPlacement="floating"
-                formControlName="newPassword"
-                type="password"
-                autocomplete="new-password"
-              >
+              <ion-input fill="outline" label="New Password" labelPlacement="floating" formControlName="newPassword"
+                type="password" autocomplete="new-password">
                 <ion-input-password-toggle slot="end"></ion-input-password-toggle>
               </ion-input>
             </ion-item>
 
             <!-- Confirm New Password -->
             <ion-item class="input-item" lines="none">
-              <ion-input
-                fill="outline"
-                label="Confirm New Password"
-                labelPlacement="floating"
-                formControlName="confirmPassword"
-                type="password"
-                autocomplete="new-password"
-              >
+              <ion-input fill="outline" label="Confirm New Password" labelPlacement="floating"
+                formControlName="confirmPassword" type="password" autocomplete="new-password">
                 <ion-input-password-toggle slot="end"></ion-input-password-toggle>
               </ion-input>
             </ion-item>
 
-            <ion-button
-              expand="block"
-              type="submit"
-              [disabled]="loading || changePasswordForm.invalid"
-              class="submit-btn"
-            >
+            <ion-button expand="block" type="submit" [disabled]="loading || changePasswordForm.invalid"
+              class="submit-btn">
               <ion-spinner *ngIf="loading" name="crescent"></ion-spinner>
               <span *ngIf="!loading">Update Password</span>
             </ion-button>
@@ -166,12 +140,8 @@
       </ion-card-header>
 
       <ion-card-content>
-        <ion-button
-          expand="block"
-          fill="outline"
-          (click)="toggleCredentials()"
-          [color]="showCredentials ? 'medium' : 'tertiary'"
-        >
+        <ion-button expand="block" fill="outline" (click)="toggleCredentials()"
+          [color]="showCredentials ? 'medium' : 'tertiary'">
           <ion-icon [name]="showCredentials ? 'chevron-up-outline' : 'key-outline'" slot="start"></ion-icon>
           {{ showCredentials ? 'Hide Credentials' : 'Manage Credentials' }}
         </ion-button>
@@ -185,35 +155,19 @@
 
             <form [formGroup]="credentialForm" (ngSubmit)="addCredential()">
               <ion-item class="input-item" lines="none">
-                <ion-input
-                  fill="outline"
-                  label="Key"
-                  labelPlacement="floating"
-                  formControlName="credentialKey"
-                  placeholder="e.g. api_key, database_url"
-                ></ion-input>
+                <ion-input fill="outline" label="Key" labelPlacement="stacked" formControlName="credentialKey"
+                  placeholder="e.g. api_key key name"></ion-input>
               </ion-item>
 
               <ion-item class="input-item" lines="none">
-                <ion-input
-                  fill="outline"
-                  label="Value"
-                  labelPlacement="floating"
-                  formControlName="credentialValue"
-                  type="password"
-                  placeholder="Enter credential value"
-                >
+                <ion-input fill="outline" label="Value" labelPlacement="stacked" formControlName="credentialValue"
+                  type="password" placeholder="Enter credential value">
                   <ion-input-password-toggle slot="end"></ion-input-password-toggle>
                 </ion-input>
               </ion-item>
 
-              <ion-button
-                expand="block"
-                type="submit"
-                [disabled]="loading || credentialForm.invalid"
-                color="primary"
-                class="add-credential-btn"
-              >
+              <ion-button expand="block" type="submit" [disabled]="loading || credentialForm.invalid" color="primary"
+                class="add-credential-btn">
                 <ion-icon name="add-outline" slot="start"></ion-icon>
                 Add Credential
               </ion-button>
@@ -225,79 +179,52 @@
             <h4>Existing Credentials</h4>
 
             <ion-list class="credentials-ion-list">
-              <ion-item *ngFor="let credential of getCredentials()" class="credential-item">
+              <ion-item *ngFor="let credential of getCredentials(); trackBy: trackByCredentialKey" class="credential-item">
                 <ion-icon name="key-outline" slot="start"></ion-icon>
-
                 <ion-label class="credential-label">
                   <h3>{{ credential.key }}</h3>
 
                   <!-- Display mode -->
                   <div *ngIf="editingCredential !== credential.key" class="credential-display">
                     <ion-item lines="none" class="display-input-item">
-                      <ion-input
-                        label="Value"
-                        labelPlacement="floating"
-                        [value]="credential.value"
-                        type="password"
-                        readonly
-                      >
-                        <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+                      <ion-input label="Value" labelPlacement="stacked" [value]="credential.value" type="password"
+                        readonly>
+                        <ion-input-password-toggle slot="end" style="display:block"></ion-input-password-toggle>
                       </ion-input>
                     </ion-item>
                   </div>
 
                   <!-- Edit mode -->
                   <div *ngIf="editingCredential === credential.key" class="credential-edit">
-                    <ion-item lines="none" class="edit-input-item">
-                      <ion-input
-                        fill="outline"
-                        label="Value"
-                        labelPlacement="floating"
-                        [(ngModel)]="editCredentialValue"
-                        type="password"
-                      >
-                        <ion-input-password-toggle slot="end"></ion-input-password-toggle>
-                      </ion-input>
-                    </ion-item>
+                    <form [formGroup]="editCredentialForm" (ngSubmit)="saveEditedCredential()">
+                      <ion-item lines="none" class="edit-input-item">
+                        <ion-input fill="outline" label="Value" labelPlacement="stacked"
+                          formControlName="credentialValueEdit" type="password">
+                           <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+                        </ion-input>
+                      </ion-item>
 
-                    <div class="edit-actions">
-                      <ion-button
-                        fill="clear"
-                        size="small"
-                        (click)="cancelEditCredential()"
-                        color="medium"
-                      >
-                        <ion-icon name="close-outline" slot="start"></ion-icon>
-                        Cancel
-                      </ion-button>
-                      <ion-button
-                        fill="clear"
-                        size="small"
-                        (click)="saveEditedCredential()"
-                        color="primary"
-                        [disabled]="!editCredentialValue.trim()"
-                      >
-                        <ion-icon name="checkmark-outline" slot="start"></ion-icon>
-                        Save
-                      </ion-button>
-                    </div>
+                      <div class="edit-actions">
+                        <ion-button fill="clear" size="small" (click)="cancelEditCredential()" color="medium"
+                          type="button">
+                          <ion-icon name="close-outline" slot="start"></ion-icon>
+                          Cancel
+                        </ion-button>
+                        <ion-button fill="clear" size="small" type="submit" color="primary"
+                          [disabled]="loading || editCredentialForm.invalid">
+                          <ion-icon name="checkmark-outline" slot="start"></ion-icon>
+                          Save
+                        </ion-button>
+                      </div>
+                    </form>
                   </div>
                 </ion-label>
 
                 <div slot="end" class="credential-actions" *ngIf="editingCredential !== credential.key">
-                  <ion-button
-                    fill="clear"
-                    size="small"
-                    (click)="startEditCredential(credential.key)"
-                  >
+                  <ion-button fill="clear" size="small" (click)="startEditCredential(credential.key)">
                     <ion-icon name="create-outline" slot="icon-only"></ion-icon>
                   </ion-button>
-                  <ion-button
-                    fill="clear"
-                    size="small"
-                    color="danger"
-                    (click)="deleteCredential(credential.key)"
-                  >
+                  <ion-button fill="clear" size="small" color="danger" (click)="deleteCredential(credential.key)">
                     <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
                   </ion-button>
                 </div>
@@ -326,12 +253,8 @@
       </ion-card-header>
 
       <ion-card-content>
-        <ion-button
-          expand="block"
-          fill="outline"
-          (click)="toggleUserManagement()"
-          [color]="showUserManagement ? 'medium' : 'secondary'"
-        >
+        <ion-button expand="block" fill="outline" (click)="toggleUserManagement()"
+          [color]="showUserManagement ? 'medium' : 'secondary'">
           <ion-icon [name]="showUserManagement ? 'chevron-up-outline' : 'people-outline'" slot="start"></ion-icon>
           {{ showUserManagement ? 'Hide Users' : 'Manage Users' }}
         </ion-button>
@@ -339,12 +262,7 @@
         <!-- User Management Content -->
         <div class="user-management-section" *ngIf="showUserManagement">
           <!-- Create New User Button -->
-          <ion-button
-            expand="block"
-            color="primary"
-            (click)="createNewUser()"
-            class="create-user-btn"
-          >
+          <ion-button expand="block" color="primary" (click)="createNewUser()" class="create-user-btn">
             <ion-icon name="person-add-outline" slot="start"></ion-icon>
             Create New User
           </ion-button>
@@ -391,35 +309,19 @@
 
                 <!-- Action Buttons -->
                 <div class="user-actions" *ngIf="managedUser.id !== user.id">
-                  <ion-button
-                    size="small"
-                    fill="outline"
-                    [color]="managedUser.is_active ? 'warning' : 'success'"
-                    (click)="managedUser.is_active ? deactivateUser(managedUser) : activateUser(managedUser)"
-                  >
-                    <ion-icon
-                      [name]="managedUser.is_active ? 'eye-off-outline' : 'eye-outline'"
-                      slot="start"
-                    ></ion-icon>
+                  <ion-button size="small" fill="outline" [color]="managedUser.is_active ? 'warning' : 'success'"
+                    (click)="managedUser.is_active ? deactivateUser(managedUser) : activateUser(managedUser)">
+                    <ion-icon [name]="managedUser.is_active ? 'eye-off-outline' : 'eye-outline'"
+                      slot="start"></ion-icon>
                     {{ managedUser.is_active ? 'Deactivate' : 'Activate' }}
                   </ion-button>
 
-                  <ion-button
-                    size="small"
-                    fill="outline"
-                    color="secondary"
-                    (click)="changeUserPassword(managedUser)"
-                  >
+                  <ion-button size="small" fill="outline" color="secondary" (click)="changeUserPassword(managedUser)">
                     <ion-icon name="key-outline" slot="start"></ion-icon>
                     Change Password
                   </ion-button>
 
-                  <ion-button
-                    size="small"
-                    fill="outline"
-                    color="danger"
-                    (click)="deleteUser(managedUser)"
-                  >
+                  <ion-button size="small" fill="outline" color="danger" (click)="deleteUser(managedUser)">
                     <ion-icon name="trash-outline" slot="start"></ion-icon>
                     Delete
                   </ion-button>
@@ -456,24 +358,13 @@
 
       <ion-card-content>
         <!-- Logout Button -->
-        <ion-button
-          expand="block"
-          color="medium"
-          (click)="onLogout()"
-          class="action-btn"
-        >
+        <ion-button expand="block" color="medium" (click)="onLogout()" class="action-btn">
           <ion-icon name="log-out-outline" slot="start"></ion-icon>
           Logout
         </ion-button>
 
         <!-- Deactivate Account Button -->
-        <ion-button
-          expand="block"
-          color="danger"
-          fill="outline"
-          (click)="onDeactivateAccount()"
-          class="action-btn"
-        >
+        <ion-button expand="block" color="danger" fill="outline" (click)="onDeactivateAccount()" class="action-btn">
           <ion-icon name="trash-outline" slot="start"></ion-icon>
           Deactivate Account
         </ion-button>
@@ -487,4 +378,3 @@
     <p>Loading user profile...</p>
   </div>
 </ion-content>
-
