@@ -156,6 +156,166 @@
       </ion-card-content>
     </ion-card>
 
+    <!-- Credentials Management Section -->
+    <ion-card class="action-card">
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="key"></ion-icon>
+          Credentials
+        </ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content>
+        <ion-button
+          expand="block"
+          fill="outline"
+          (click)="toggleCredentials()"
+          [color]="showCredentials ? 'medium' : 'tertiary'"
+        >
+          <ion-icon [name]="showCredentials ? 'chevron-up-outline' : 'key-outline'" slot="start"></ion-icon>
+          {{ showCredentials ? 'Hide Credentials' : 'Manage Credentials' }}
+        </ion-button>
+
+        <!-- Credentials Management Content -->
+        <div class="credentials-section" *ngIf="showCredentials">
+
+          <!-- Add New Credential Form -->
+          <h4>Add New Credential</h4>
+          <div class="add-credential-form">
+
+            <form [formGroup]="credentialForm" (ngSubmit)="addCredential()">
+              <ion-item class="input-item" lines="none">
+                <ion-input
+                  fill="outline"
+                  label="Key"
+                  labelPlacement="floating"
+                  formControlName="credentialKey"
+                  placeholder="e.g. api_key, database_url"
+                ></ion-input>
+              </ion-item>
+
+              <ion-item class="input-item" lines="none">
+                <ion-input
+                  fill="outline"
+                  label="Value"
+                  labelPlacement="floating"
+                  formControlName="credentialValue"
+                  type="password"
+                  placeholder="Enter credential value"
+                >
+                  <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+                </ion-input>
+              </ion-item>
+
+              <ion-button
+                expand="block"
+                type="submit"
+                [disabled]="loading || credentialForm.invalid"
+                color="primary"
+                class="add-credential-btn"
+              >
+                <ion-icon name="add-outline" slot="start"></ion-icon>
+                Add Credential
+              </ion-button>
+            </form>
+          </div>
+
+          <!-- Existing Credentials List -->
+          <div class="credentials-list" *ngIf="getCredentials().length > 0">
+            <h4>Existing Credentials</h4>
+
+            <ion-list class="credentials-ion-list">
+              <ion-item *ngFor="let credential of getCredentials()" class="credential-item">
+                <ion-icon name="key-outline" slot="start"></ion-icon>
+
+                <ion-label class="credential-label">
+                  <h3>{{ credential.key }}</h3>
+
+                  <!-- Display mode -->
+                  <div *ngIf="editingCredential !== credential.key" class="credential-display">
+                    <ion-item lines="none" class="display-input-item">
+                      <ion-input
+                        label="Value"
+                        labelPlacement="floating"
+                        [value]="credential.value"
+                        type="password"
+                        readonly
+                      >
+                        <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+                      </ion-input>
+                    </ion-item>
+                  </div>
+
+                  <!-- Edit mode -->
+                  <div *ngIf="editingCredential === credential.key" class="credential-edit">
+                    <ion-item lines="none" class="edit-input-item">
+                      <ion-input
+                        fill="outline"
+                        label="Value"
+                        labelPlacement="floating"
+                        [(ngModel)]="editCredentialValue"
+                        type="password"
+                      >
+                        <ion-input-password-toggle slot="end"></ion-input-password-toggle>
+                      </ion-input>
+                    </ion-item>
+
+                    <div class="edit-actions">
+                      <ion-button
+                        fill="clear"
+                        size="small"
+                        (click)="cancelEditCredential()"
+                        color="medium"
+                      >
+                        <ion-icon name="close-outline" slot="start"></ion-icon>
+                        Cancel
+                      </ion-button>
+                      <ion-button
+                        fill="clear"
+                        size="small"
+                        (click)="saveEditedCredential()"
+                        color="primary"
+                        [disabled]="!editCredentialValue.trim()"
+                      >
+                        <ion-icon name="checkmark-outline" slot="start"></ion-icon>
+                        Save
+                      </ion-button>
+                    </div>
+                  </div>
+                </ion-label>
+
+                <div slot="end" class="credential-actions" *ngIf="editingCredential !== credential.key">
+                  <ion-button
+                    fill="clear"
+                    size="small"
+                    (click)="startEditCredential(credential.key)"
+                  >
+                    <ion-icon name="create-outline" slot="icon-only"></ion-icon>
+                  </ion-button>
+                  <ion-button
+                    fill="clear"
+                    size="small"
+                    color="danger"
+                    (click)="deleteCredential(credential.key)"
+                  >
+                    <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
+                  </ion-button>
+                </div>
+              </ion-item>
+            </ion-list>
+          </div>
+
+          <!-- Empty state -->
+          <div class="empty-credentials" *ngIf="getCredentials().length === 0">
+            <ion-text color="medium">
+              <p>No credentials configured yet.</p>
+            </ion-text>
+          </div>
+
+        </div>
+      </ion-card-content>
+    </ion-card>
+
     <!-- Admin User Management Section -->
     <ion-card class="action-card" *ngIf="isAdmin()">
       <ion-card-header>

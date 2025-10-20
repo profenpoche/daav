@@ -14,6 +14,7 @@ export class UserProfileComponent implements OnInit {
   user: User | null = null;
   showChangePassword = false;
   changePasswordForm!: FormGroup;
+  credentialForm!: FormGroup;
   loading = false;
 
   // Admin user management
@@ -21,6 +22,11 @@ export class UserProfileComponent implements OnInit {
   allUsers: User[] = [];
   loadingUsers = false;
   selectedUser: User | null = null;
+
+  // Credentials management
+  showCredentials = false;
+  editingCredential: string | null = null;
+  editCredentialValue = '';
 
   constructor(
     private formBuilder: FormBuilder,
@@ -46,6 +52,12 @@ export class UserProfileComponent implements OnInit {
         Validators.minLength(8)
       ]],
       confirmPassword: ['', [Validators.required]]
+    });
+
+    // Initialize credential form
+    this.credentialForm = this.formBuilder.group({
+      credentialKey: ['', [Validators.required]],
+      credentialValue: ['', [Validators.required]]
     });
   }
 
@@ -249,6 +261,222 @@ export class UserProfileComponent implements OnInit {
    */
   isAdmin(): boolean {
     return this.user?.role === 'admin';
+  }
+
+  // ==================== CREDENTIALS MANAGEMENT ====================
+
+  /**
+   * Toggle credentials section
+   */
+  toggleCredentials() {
+    this.showCredentials = !this.showCredentials;
+    if (!this.showCredentials) {
+      this.resetCredentialForm();
+    }
+  }
+
+  /**
+   * Get user credentials as key-value pairs
+   */
+  getCredentials(): Array<{key: string, value: string}> {
+    if (!this.user?.config?.credentials) return [];
+    return Object.entries(this.user.config.credentials).map(([key, value]) => ({key, value}));
+  }
+
+  /**
+   * Add new credential
+   */
+  async addCredential() {
+    if (this.credentialForm.invalid) {
+      this.markFormGroupTouched(this.credentialForm);
+      return;
+    }
+
+    const { credentialKey, credentialValue } = this.credentialForm.value;
+
+    if (!this.user?.config) {
+      await this.showToast('User config not available', 'danger');
+      return;
+    }
+
+    // Check if key already exists
+    if (this.user.config.credentials && this.user.config.credentials[credentialKey]) {
+      await this.showToast('Credential key already exists', 'warning');
+      return;
+    }
+
+    const loading = await this.loadingController.create({
+      message: 'Adding credential...',
+    });
+    await loading.present();
+
+    try {
+      // Initialize credentials if not exists
+      if (!this.user.config.credentials) {
+        this.user.config.credentials = {};
+      }
+
+      // Add new credential
+      this.user.config.credentials[credentialKey] = credentialValue;
+
+      // Update user via API
+      this.authService.updateUser(this.user.id, { config: this.user.config }).subscribe({
+        next: async (updatedUser) => {
+          await loading.dismiss();
+          // Update local user data
+          this.user = updatedUser;
+          this.credentialForm.reset();
+          await this.showToast('Credential added successfully', 'success');
+        },
+        error: async (error) => {
+          await loading.dismiss();
+          // Revert local change
+          if (this.user?.config?.credentials) {
+            delete this.user.config.credentials[credentialKey];
+          }
+          await this.showToast('Failed to add credential: ' + error.message, 'danger');
+        }
+      });
+    } catch (error) {
+      await loading.dismiss();
+      await this.showToast('Failed to add credential', 'danger');
+    }
+  }
+
+  /**
+   * Start editing a credential
+   */
+  startEditCredential(key: string) {
+    this.editingCredential = key;
+    this.editCredentialValue = this.user?.config?.credentials?.[key] || '';
+  }
+
+  /**
+   * Cancel editing credential
+   */
+  cancelEditCredential() {
+    this.editingCredential = null;
+    this.editCredentialValue = '';
+  }
+
+  /**
+   * Save edited credential
+   */
+  async saveEditedCredential() {
+    if (!this.editingCredential || !this.editCredentialValue.trim()) {
+      await this.showToast('Value is required', 'warning');
+      return;
+    }
+
+    if (!this.user?.config?.credentials) {
+      await this.showToast('User config not available', 'danger');
+      return;
+    }
+
+    const loading = await this.loadingController.create({
+      message: 'Updating credential...',
+    });
+    await loading.present();
+
+    const oldValue = this.user.config.credentials[this.editingCredential];
+
+    try {
+      // Update credential value
+      this.user.config.credentials[this.editingCredential] = this.editCredentialValue;
+
+      // Update user via API
+      this.authService.updateUser(this.user.id, { config: this.user.config }).subscribe({
+        next: async (updatedUser) => {
+          await loading.dismiss();
+          // Update local user data
+          this.user = updatedUser;
+          this.cancelEditCredential();
+          await this.showToast('Credential updated successfully', 'success');
+        },
+        error: async (error) => {
+          await loading.dismiss();
+          // Revert local change
+          if (this.user?.config?.credentials) {
+            this.user.config.credentials[this.editingCredential!] = oldValue;
+          }
+          this.cancelEditCredential();
+          await this.showToast('Failed to update credential: ' + error.message, 'danger');
+        }
+      });
+    } catch (error) {
+      await loading.dismiss();
+      this.cancelEditCredential();
+      await this.showToast('Failed to update credential', 'danger');
+    }
+  }
+
+  /**
+   * Delete credential
+   */
+  async deleteCredential(key: string) {
+    const alert = await this.alertController.create({
+      header: 'Delete Credential',
+      message: `Are you sure you want to delete the credential "${key}"?`,
+      buttons: [
+        {
+          text: 'Cancel',
+          role: 'cancel'
+        },
+        {
+          text: 'Delete',
+          role: 'destructive',
+          handler: async () => {
+            if (!this.user?.config?.credentials) {
+              await this.showToast('User config not available', 'danger');
+              return;
+            }
+
+            const loading = await this.loadingController.create({
+              message: 'Deleting credential...',
+            });
+            await loading.present();
+
+            const oldValue = this.user.config.credentials[key];
+
+            try {
+              // Remove credential
+              delete this.user.config.credentials[key];
+
+              // Update user via API
+              this.authService.updateUser(this.user.id, { config: this.user.config }).subscribe({
+                next: async (updatedUser) => {
+                  await loading.dismiss();
+                  // Update local user data
+                  this.user = updatedUser;
+                  await this.showToast('Credential deleted successfully', 'success');
+                },
+                error: async (error) => {
+                  await loading.dismiss();
+                  // Revert local change
+                  if (this.user?.config?.credentials) {
+                    this.user.config.credentials[key] = oldValue;
+                  }
+                  await this.showToast('Failed to delete credential: ' + error.message, 'danger');
+                }
+              });
+            } catch (error) {
+              await loading.dismiss();
+              await this.showToast('Failed to delete credential', 'danger');
+            }
+          }
+        }
+      ]
+    });
+
+    await alert.present();
+  }
+
+  /**
+   * Reset credential editing state
+   */
+  private resetCredentialForm() {
+    this.editingCredential = null;
+    this.editCredentialValue = '';
   }
 
   // ==================== ADMIN USER MANAGEMENT ====================
