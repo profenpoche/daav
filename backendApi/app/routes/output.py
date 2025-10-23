@@ -1,17 +1,19 @@
 import json
 import os
 import logging
-from typing import Annotated, Optional
-from fastapi import APIRouter, HTTPException, Request, Header, Query
+from typing import Annotated, List, Optional
+from fastapi import APIRouter, HTTPException, Request , status, Header, Query
 from fastapi.responses import JSONResponse
 import duckdb
 
 from app.routes.workflows import import_and_execute_workflow
 from app.services.dataset_service import DatasetService
+from app.services.user_service import UserService
 from app.services.workflow_service import WorkflowService
 from app.models.interface.pdc_chain_interface import PdcChainHeaders, PdcChainResponse, PdcChainRequest
+from app.utils.auth_utils import AuthenticatedUser, authenticate_m2m_credentials
 from app.utils.drupal_filter_converter import DrupalFilterConverter
-from app.utils.utils import filter_data_with_duckdb
+from app.utils.utils import filter_data_with_duckdb, get_user_output_path
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -22,10 +24,11 @@ UPLOADS_DIR = os.path.join("app", "uploads")
 # Initialize services
 dataset_service = DatasetService()
 workflow_service = WorkflowService()
+user_service = UserService()
 drupal_filter_converter = DrupalFilterConverter()
 
 @router.get("/{custom_path}")
-async def get_output_from_custom_path(custom_path: str, request: Request,pdc_token:str | None = None):
+async def get_output_from_custom_path(custom_path: str, request: Request,):
     """
     Get output from custom path by searching through workflows with optional filtering.
     Args:
@@ -42,9 +45,9 @@ async def get_output_from_custom_path(custom_path: str, request: Request,pdc_tok
             Input: "filter[test][condition][path]=model&filter[test][condition][operator]=STARTS_WITH&filter[test][condition][value]=M"
     """
     try:
-        #verify_bearer(request, pdc_token)
-        logger.info(f"Searching for output with custom path: {custom_path}")
+
         
+        logger.info(f"Searching for output with custom path: {custom_path}")
         # Get all workflows from the service
         workflows = await workflow_service.get_workflows()
         
@@ -64,16 +67,32 @@ async def get_output_from_custom_path(custom_path: str, request: Request,pdc_tok
         if node is None:
             logger.warning(f"No PdcOutput node found with URL: {custom_path}")
             raise HTTPException(status_code=404, detail="No PdcOutput node with this URL found")
+                # Attempt to fetch user info from UserService if available
 
-        # Construct output file path
-        file_path = os.path.join(UPLOADS_DIR, f"{node.id}-output.json")
+        try:
+            user = await user_service.get_user_from_workflow(workflow)
+            logger.debug(f"Retrieved user from workflow: {getattr(user, 'id', user)}")
+
+        except Exception:
+            # If user service or function not available, continue without user info
+            logger.debug("UserService.get_user_from_workflow not available or failed", exc_info=True)
+            user = None
+        if not user:
+            authenticated_users: List[AuthenticatedUser] = await authenticate_m2m_credentials(request.headers, [user])
+            if not authenticated_users:
+                raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No valid credentials found in headers"
+            )    
+        # Construct output file path with user isolation
+        file_path = get_user_output_path(node.id, user)
         logger.debug(f"Looking for output file: {file_path}")
 
         # Execute workflow if output doesn't exist
         if not os.path.isfile(file_path):
             logger.info(f"Output file not found, executing workflow: {workflow.id}")
             try:
-                await import_and_execute_workflow(workflow)
+                await import_and_execute_workflow(workflow, current_user=user)
             except Exception as exec_error:
                 logger.error(f"Workflow execution failed: {exec_error}", exc_info=True)
                 raise HTTPException(
@@ -122,7 +141,7 @@ async def get_output_from_custom_path(custom_path: str, request: Request,pdc_tok
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/workflow/{workflow_id}")
-async def get_workflow_output(workflow_id: str,  request: Request ,pdc_token:str | None = None):
+async def get_workflow_output(workflow_id: str, request: Request):
     """
     Get workflow output by workflow ID with optional filtering.
     Args:
@@ -137,7 +156,13 @@ async def get_workflow_output(workflow_id: str,  request: Request ,pdc_token:str
 
     """
     try:
-        #verify_bearer(request, pdc_token)
+        all_users = await user_service.get_all_users()
+        authenticated_users: List[AuthenticatedUser] = await authenticate_m2m_credentials(request.headers, all_users)
+        if not authenticated_users:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No valid credentials found in headers"
+            )
         logger.info(f"Getting workflow output for ID: {workflow_id}")
         
         # Get specific workflow from the service
@@ -157,16 +182,31 @@ async def get_workflow_output(workflow_id: str,  request: Request ,pdc_token:str
         if node is None:
             logger.error(f"No PdcOutput node found in workflow: {workflow_id}")
             raise HTTPException(status_code=400, detail="PdcOutput node not found")
+        
+        try:
+            user = await user_service.get_user_from_workflow(workflow)
+            logger.debug(f"Retrieved user from workflow: {getattr(user, 'id', user)}")
+        except Exception:
+            # If user service or function not available, continue without user info
+            logger.debug("UserService.get_user_from_workflow not available or failed", exc_info=True)
+            user = None
+            if not user:
+                authenticated_users: List[AuthenticatedUser] = await authenticate_m2m_credentials(request.headers, [user])
+                if not authenticated_users:
+                    raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="No valid credentials found in headers"
+                ) 
+        # Construct output file path with user isolation
+        file_path = get_user_output_path(node.id, user)
 
-        # Construct output file path
-        file_path = os.path.join(UPLOADS_DIR, f"{node.id}-output.json")
         logger.debug(f"Looking for workflow output file: {file_path}")
 
         # Execute workflow if output doesn't exist
         if not os.path.isfile(file_path):
             logger.info(f"Output file not found, executing workflow: {workflow_id}")
             try:
-                await import_and_execute_workflow(workflow)
+                await import_and_execute_workflow(workflow, current_user=user)
             except Exception as exec_error:
                 logger.error(f"Workflow execution failed: {exec_error}", exc_info=True)
                 raise HTTPException(
@@ -213,58 +253,3 @@ async def get_workflow_output(workflow_id: str,  request: Request ,pdc_token:str
     except Exception as e:
         logger.error(f"Unexpected error processing workflow {workflow_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-def verify_bearer(request: Request, pdc_token: str):
-    """Verify Bearer token in Authorization header"""
-    try:
-        logger.debug("Verifying Bearer token")
-        
-        if "Authorization" not in request.headers:
-            logger.warning("Authorization header missing in request")
-            raise HTTPException(status_code=401, detail='Authorization header missing')
-        
-        token = get_token_auth_header(request.headers["Authorization"])
-        
-        if token != pdc_token:
-            logger.warning("Invalid token provided")
-            raise HTTPException(status_code=401, detail="Invalid token")
-        
-        logger.debug("Bearer token verified successfully")
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error verifying bearer token: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=401,
-            detail=e.message if hasattr(e, 'message') else str(e)
-        )
-
-def get_token_auth_header(authorization: str) -> str:
-    """Extract token from Authorization header"""
-    logger.debug("Extracting token from Authorization header")
-    
-    parts = authorization.split()
-
-    if parts[0].lower() != "bearer":
-        logger.warning("Authorization header doesn't start with Bearer")
-        raise HTTPException(
-            status_code=401, 
-            detail='Authorization header must start with Bearer'
-        )
-    elif len(parts) == 1:
-        logger.warning("Authorization token not found in header")
-        raise HTTPException(
-            status_code=401, 
-            detail='Authorization token not found'
-        )
-    elif len(parts) > 2:
-        logger.warning("Invalid Authorization header format")
-        raise HTTPException(
-            status_code=401, 
-            detail='Authorization header must be Bearer token'
-        )
-    
-    token = parts[1]
-    logger.debug("Token extracted successfully from Authorization header")
-    return token

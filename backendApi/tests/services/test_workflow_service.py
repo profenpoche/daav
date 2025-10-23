@@ -3,7 +3,7 @@ Tests for WorkflowService class
 """
 import pytest
 from unittest.mock import AsyncMock, Mock, patch, MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import HTTPException
 
@@ -27,8 +27,8 @@ def sample_workflow():
     mock_workflow.name = "test_workflow"
     mock_workflow.revision = "1.0"
     mock_workflow.dataConnectors = []
-    mock_workflow.created_at = datetime.utcnow()
-    mock_workflow.updated_at = datetime.utcnow()
+    mock_workflow.created_at = datetime.now(timezone.utc)
+    mock_workflow.updated_at = datetime.now(timezone.utc)
     mock_workflow.delete = AsyncMock()
     mock_workflow.replace = AsyncMock()
     return mock_workflow
@@ -44,8 +44,8 @@ def create_mock_iproject_list(count: int = 3):
         workflow.name = f"workflow_{i}"
         workflow.revision = f"1.{i}"
         workflow.dataConnectors = []
-        workflow.created_at = datetime.utcnow()
-        workflow.updated_at = datetime.utcnow()
+        workflow.created_at = datetime.now(timezone.utc)
+        workflow.updated_at = datetime.now(timezone.utc)
         workflows.append(workflow)
     return workflows
 
@@ -57,8 +57,8 @@ def create_async_mock():
     mock.name = "test"
     mock.revision = "1.0"
     mock.dataConnectors = []
-    mock.created_at = datetime.utcnow()
-    mock.updated_at = datetime.utcnow()
+    mock.created_at = datetime.now(timezone.utc)
+    mock.updated_at = datetime.now(timezone.utc)
     mock.insert = AsyncMock()
     mock.delete = AsyncMock()
     mock.replace = AsyncMock()
@@ -132,39 +132,51 @@ async def test_get_workflow_not_found(workflow_service_instance, mock_user):
 
 @pytest.mark.asyncio
 async def test_create_workflow_success(workflow_service_instance, mock_user):
-    """Test successful workflow creation"""
-    workflow_data = {
-        "name": "new_workflow",
-        "revision": "1.0",
-        "dataConnectors": [],
-        "pschema": {
-            "nodes": [],
-            "connections": [],
-            "revision": "1.0"
-        }
-    }
+    """Test successful workflow creation using mocked IProject"""
     
-    mock_workflow = create_async_mock()
+    # Create a mock IProject instead of real one to avoid Beanie validation issues
+    mock_workflow = Mock(spec=IProject)
     mock_workflow.name = "new_workflow"
     mock_workflow.revision = "1.0"
+    mock_workflow.dataConnectors = []
+    mock_workflow.id = "mock-workflow-id"
+    mock_workflow.created_at = None  # Will be set by service
+    mock_workflow.updated_at = None  # Will be set by service
+    mock_workflow.insert = AsyncMock()
     
-    with patch('app.services.workflow_service.IProject') as mock_iproject_class, \
-         patch.object(workflow_service_instance.user_service, 'assign_workflow_ownership') as mock_assign:
-        mock_iproject_class.return_value = mock_workflow
+    # Test the service with mock workflow
+    with patch.object(workflow_service_instance.user_service, 'assign_workflow_ownership') as mock_assign:
+        result = await workflow_service_instance.create_workflow(mock_workflow, mock_user)
         
-        result = await workflow_service_instance.create_workflow(workflow_data, mock_user)
-        
+        # Verify the workflow was processed correctly
         assert result.name == "new_workflow"
-        mock_iproject_class.assert_called_once_with(**workflow_data)
+        assert result.revision == "1.0" 
+        
+        # Verify service sets timestamps
+        assert result.created_at is not None
+        assert result.updated_at is not None
+        
+        # Verify service calls
         mock_workflow.insert.assert_called_once()
         mock_assign.assert_called_once_with(mock_user, mock_workflow)
 
 
 @pytest.mark.asyncio
 async def test_update_workflow_success(workflow_service_instance, sample_workflow, mock_user):
-    """Test successful workflow update"""
+    """Test successful workflow update using IProject"""
     workflow_id = str(sample_workflow.id)
-    update_data = {"id": workflow_id, "name": "updated_workflow", "revision": "1.1"}
+    
+    # Create minimal schema for IProject
+    from app.models.interface.workflow_interface import ISchema
+    minimal_schema = ISchema(nodes=[], connections=[])
+    
+    # Create IProject update data
+    update_data = IProject(
+        id=workflow_id, 
+        name="updated_workflow", 
+        revision="1.1",
+        pschema=minimal_schema
+    )
     sample_workflow.owner_id = mock_user.id
     
     with patch.object(IProject, 'get', new_callable=AsyncMock) as mock_get, \
@@ -183,7 +195,15 @@ async def test_update_workflow_success(workflow_service_instance, sample_workflo
 async def test_update_workflow_not_found(workflow_service_instance, mock_user):
     """Test update when workflow doesn't exist"""
     workflow_id = "507f1f77bcf86cd799439999"
-    update_data = {"id": workflow_id, "name": "updated_workflow"}
+    
+    # Create IProject update data
+    from app.models.interface.workflow_interface import ISchema
+    minimal_schema = ISchema(nodes=[], connections=[])
+    update_data = IProject(
+        id=workflow_id, 
+        name="updated_workflow",
+        pschema=minimal_schema
+    )
     
     with patch.object(IProject, 'get', new_callable=AsyncMock) as mock_get, \
          patch.object(workflow_service_instance.user_service, 'can_modify_workflow', return_value=True):
@@ -288,22 +308,29 @@ async def test_get_workflow_database_error(workflow_service_instance, mock_user)
 @pytest.mark.asyncio
 async def test_create_workflow_validation_error(workflow_service_instance, mock_user):
     """Test validation error handling in create_workflow"""
-    invalid_data = {"invalid_field": "invalid_value"}
     
-    with patch('app.services.workflow_service.IProject') as mock_iproject_class:
-        mock_iproject_class.side_effect = ValueError("Validation error")
-        
-        with pytest.raises(HTTPException) as exc_info:
-            await workflow_service_instance.create_workflow(invalid_data, mock_user)
-        
-        assert exc_info.value.status_code == 500
-        assert "Failed to create workflow" in str(exc_info.value.detail)
+    # Create mock IProject that will raise error during insert
+    mock_workflow = Mock(spec=IProject)
+    mock_workflow.name = "test_workflow"
+    mock_workflow.insert = AsyncMock(side_effect=ValueError("Database error"))
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await workflow_service_instance.create_workflow(mock_workflow, mock_user)
+    
+    assert exc_info.value.status_code == 500
+    assert "Failed to create workflow" in str(exc_info.value.detail)
 
 
 @pytest.mark.asyncio
 async def test_update_workflow_database_error(workflow_service_instance, mock_user):
     """Test database error handling in update_workflow"""
-    update_data = {"id": "507f1f77bcf86cd799439011", "name": "updated_workflow"}
+    from app.models.interface.workflow_interface import ISchema
+    minimal_schema = ISchema(nodes=[], connections=[])
+    update_data = IProject(
+        id="507f1f77bcf86cd799439011", 
+        name="updated_workflow",
+        pschema=minimal_schema
+    )
     
     with patch.object(workflow_service_instance.user_service, 'can_modify_workflow', return_value=True), \
          patch.object(IProject, 'get', new_callable=AsyncMock) as mock_get:
@@ -318,8 +345,16 @@ async def test_update_workflow_database_error(workflow_service_instance, mock_us
 
 @pytest.mark.asyncio
 async def test_update_workflow_missing_id(workflow_service_instance, mock_user):
-    """Test update workflow when ID is missing"""
-    update_data = {"name": "updated_workflow"}  # Missing ID
+    """Test update workflow when ID is missing/None"""
+    from app.models.interface.workflow_interface import ISchema
+    minimal_schema = ISchema(nodes=[], connections=[])
+    
+    # Create IProject with None ID to test the validation
+    update_data = IProject(
+        id=None,  # Missing/None ID
+        name="updated_workflow",
+        pschema=minimal_schema
+    )
     
     with pytest.raises(HTTPException) as exc_info:
         await workflow_service_instance.update_workflow(update_data, mock_user)
@@ -332,21 +367,18 @@ async def test_update_workflow_missing_id(workflow_service_instance, mock_user):
 @pytest.mark.asyncio
 async def test_create_workflow_with_timestamps(workflow_service_instance, mock_user):
     """Test workflow creation includes timestamps"""
-    workflow_data = {
-        "name": "timestamped_workflow",
-        "revision": "1.0",
-        "dataConnectors": [],
-        "pschema": {"nodes": [], "connections": [], "revision": "1.0"}
-    }
     
-    mock_workflow = create_async_mock()
+    # Create mock IProject for testing
+    mock_workflow = Mock(spec=IProject)
     mock_workflow.name = "timestamped_workflow"
+    mock_workflow.revision = "1.0"
+    mock_workflow.dataConnectors = []
+    mock_workflow.created_at = None  # Will be set by service
+    mock_workflow.updated_at = None  # Will be set by service
+    mock_workflow.insert = AsyncMock()
     
-    with patch('app.services.workflow_service.IProject') as mock_iproject_class, \
-         patch.object(workflow_service_instance.user_service, 'assign_workflow_ownership'):
-        mock_iproject_class.return_value = mock_workflow
-        
-        result = await workflow_service_instance.create_workflow(workflow_data, mock_user)
+    with patch.object(workflow_service_instance.user_service, 'assign_workflow_ownership'):
+        result = await workflow_service_instance.create_workflow(mock_workflow, mock_user)
         
         # Verify timestamps were set
         assert hasattr(mock_workflow, 'created_at')
@@ -359,7 +391,14 @@ async def test_update_workflow_updates_timestamp(workflow_service_instance, samp
     """Test workflow update modifies updated_at timestamp"""
     workflow_id = str(sample_workflow.id)
     original_updated_at = sample_workflow.updated_at
-    update_data = {"id": workflow_id, "name": "updated_workflow"}
+    
+    from app.models.interface.workflow_interface import ISchema
+    minimal_schema = ISchema(nodes=[], connections=[])
+    update_data = IProject(
+        id=workflow_id, 
+        name="updated_workflow",
+        pschema=minimal_schema
+    )
     sample_workflow.owner_id = mock_user.id
     
     with patch.object(IProject, 'get', new_callable=AsyncMock) as mock_get, \
@@ -376,35 +415,66 @@ async def test_update_workflow_updates_timestamp(workflow_service_instance, samp
 @pytest.mark.asyncio
 async def test_create_workflow_with_empty_schema(workflow_service_instance, mock_user):
     """Test creating workflow with minimal/empty schema"""
-    minimal_workflow_data = {
-        "name": "minimal_workflow",
-        "revision": "1.0", 
-        "dataConnectors": [],
-        "pschema": {
-            "nodes": [],
-            "connections": [],
-            "revision": "1.0"
-        }
-    }
     
-    mock_workflow = create_async_mock()
+    # Create mock IProject with minimal schema
+    mock_workflow = Mock(spec=IProject)
     mock_workflow.name = "minimal_workflow"
+    mock_workflow.revision = "1.0"
+    mock_workflow.dataConnectors = []
+    mock_workflow.pschema = Mock()
+    mock_workflow.pschema.nodes = []
+    mock_workflow.pschema.connections = []
+    mock_workflow.created_at = None
+    mock_workflow.updated_at = None
+    mock_workflow.insert = AsyncMock()
     
-    with patch('app.services.workflow_service.IProject') as mock_iproject_class, \
-         patch.object(workflow_service_instance.user_service, 'assign_workflow_ownership'):
-        mock_iproject_class.return_value = mock_workflow
-        
-        result = await workflow_service_instance.create_workflow(minimal_workflow_data, mock_user)
+    with patch.object(workflow_service_instance.user_service, 'assign_workflow_ownership'):
+        result = await workflow_service_instance.create_workflow(mock_workflow, mock_user)
         
         assert result.name == "minimal_workflow"
-        mock_iproject_class.assert_called_once_with(**minimal_workflow_data)
+        mock_workflow.insert.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_create_workflow_generates_uuid_when_missing(workflow_service_instance, mock_user):
+    """Test that create_workflow automatically generates UUID when id is None"""
+    
+    # Create mock IProject without id
+    mock_workflow = Mock(spec=IProject)
+    mock_workflow.name = "test_workflow"
+    mock_workflow.id = None  # No ID provided
+    mock_workflow.revision = "1.0"
+    mock_workflow.dataConnectors = []
+    mock_workflow.pschema = Mock()
+    mock_workflow.pschema.nodes = []
+    mock_workflow.pschema.connections = []
+    mock_workflow.created_at = None
+    mock_workflow.updated_at = None
+    mock_workflow.insert = AsyncMock()
+    
+    with patch.object(workflow_service_instance.user_service, 'assign_workflow_ownership'):
+        result = await workflow_service_instance.create_workflow(mock_workflow, mock_user)
+        
+        # Verify UUID was generated
+        assert result.id is not None
+        assert len(result.id) == 36  # UUID format length
+        assert "-" in result.id  # UUID contains hyphens
+        mock_workflow.insert.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_update_workflow_partial_data(workflow_service_instance, sample_workflow, mock_user):
-    """Test partial update of workflow data"""
+    """Test partial update of workflow data using IProject"""
     workflow_id = str(sample_workflow.id)
-    partial_update = {"id": workflow_id, "revision": "1.1"}  # Only updating revision
+    
+    from app.models.interface.workflow_interface import ISchema
+    minimal_schema = ISchema(nodes=[], connections=[])
+    partial_update = IProject(
+        id=workflow_id, 
+        revision="1.1",  # Only updating revision
+        name="test",  # Required field
+        pschema=minimal_schema
+    )
     sample_workflow.owner_id = mock_user.id
     
     with patch.object(IProject, 'get', new_callable=AsyncMock) as mock_get, \
@@ -421,31 +491,27 @@ async def test_update_workflow_partial_data(workflow_service_instance, sample_wo
 @pytest.mark.asyncio
 async def test_workflow_with_data_connectors(workflow_service_instance, mock_user):
     """Test workflow creation with data connectors"""
-    workflow_with_connectors = {
-        "name": "connector_workflow",
-        "revision": "1.0",
-        "dataConnectors": ["conn1", "conn2"],
-        "pschema": {
-            "nodes": [],
-            "connections": [],
-            "revision": "1.0"
-        }
-    }
     
-    mock_workflow = create_async_mock()
+    # Create mock IProject with data connectors
+    mock_workflow = Mock(spec=IProject)
     mock_workflow.name = "connector_workflow"
+    mock_workflow.revision = "1.0"
     mock_workflow.dataConnectors = ["conn1", "conn2"]
+    mock_workflow.pschema = Mock()
+    mock_workflow.pschema.nodes = []
+    mock_workflow.pschema.connections = []
+    mock_workflow.created_at = None
+    mock_workflow.updated_at = None
+    mock_workflow.insert = AsyncMock()
     
-    with patch('app.services.workflow_service.IProject') as mock_iproject_class, \
-         patch.object(workflow_service_instance.user_service, 'assign_workflow_ownership'):
-        mock_iproject_class.return_value = mock_workflow
-        
-        result = await workflow_service_instance.create_workflow(workflow_with_connectors, mock_user)
+    with patch.object(workflow_service_instance.user_service, 'assign_workflow_ownership'):        
+        result = await workflow_service_instance.create_workflow(mock_workflow, mock_user)
         
         assert result.name == "connector_workflow"
         assert len(result.dataConnectors) == 2
         assert result.dataConnectors[0] == "conn1"
         assert result.dataConnectors[1] == "conn2"
+        mock_workflow.insert.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -453,7 +519,15 @@ async def test_update_workflow_data_connectors(workflow_service_instance, sample
     """Test updating workflow data connectors"""
     workflow_id = str(sample_workflow.id)
     new_connectors = ["new_conn"]
-    update_data = {"id": workflow_id, "dataConnectors": new_connectors}
+    
+    from app.models.interface.workflow_interface import ISchema
+    minimal_schema = ISchema(nodes=[], connections=[])
+    update_data = IProject(
+        id=workflow_id, 
+        dataConnectors=new_connectors,
+        name="test",  # Required field
+        pschema=minimal_schema
+    )
     sample_workflow.owner_id = mock_user.id
     
     with patch.object(IProject, 'get', new_callable=AsyncMock) as mock_get, \
@@ -550,3 +624,64 @@ async def test_get_workflow_without_user(workflow_service_instance):
     assert result is not None
     assert result.id == "test-workflow-m2m-3"
     assert result.name == "M2M Workflow 3"
+
+
+@pytest.mark.asyncio
+async def test_update_workflow_preserves_system_fields(workflow_service_instance, mock_admin_user):
+    """Test that system fields like owner_id are preserved during IProject updates with exclude_unset=True"""
+    
+    # Create original workflow with owner_id
+    original_workflow = IProject(
+        id="preserve-test-workflow",
+        name="Original Workflow",
+        owner_id="user-123",
+        pschema=ISchema(nodes=[], connections=[])
+    )
+    await original_workflow.create()
+    
+    # Create partial update WITHOUT owner_id (simulates frontend JSON without owner_id)
+    partial_update = IProject(
+        id="preserve-test-workflow",
+        name="Updated Workflow Name",
+        pschema=ISchema(nodes=[], connections=[])
+        # Note: owner_id is NOT provided - this is the key test!
+    )
+    
+    # Update using admin to bypass permission checks
+    updated_workflow = await workflow_service_instance.update_workflow(partial_update, mock_admin_user)
+    
+    # Verify the optimization: owner_id should be preserved, name should be updated
+    assert updated_workflow.name == "Updated Workflow Name", "Name should be updated"
+    assert updated_workflow.owner_id == "user-123", "owner_id should be preserved from original"
+    
+    # This is the core success: exclude_unset=True prevented owner_id from being overwritten with None
+
+
+def test_exclude_unset_model_behavior():
+    """Test that IProject.model_dump(exclude_unset=True) only includes explicitly set fields"""
+    
+    # Simulate FastAPI validation of JSON without owner_id
+    workflow_json = {
+        "id": "test-workflow",
+        "name": "Updated Name",
+        "pschema": {
+            "nodes": [],
+            "connections": []
+        }
+        # Note: no owner_id field in original JSON
+    }
+    
+    # Create IProject from JSON (as FastAPI would do)
+    workflow = IProject(**workflow_json)
+    
+    # Test exclude_unset behavior
+    update_data = workflow.model_dump(exclude_unset=True)
+    
+    # Key assertions for our optimization
+    assert "owner_id" not in update_data, "owner_id should not be in update when not provided in JSON"
+    assert "created_at" not in update_data, "created_at should not be in update when not provided in JSON"
+    
+    # But explicitly provided fields should be there
+    assert "id" in update_data
+    assert "name" in update_data
+    assert update_data["name"] == "Updated Name"

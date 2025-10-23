@@ -33,12 +33,12 @@ export class WorkflowService extends BaseService {
 
   // Create new workflow
   createWorkflow(workflow: Project): Observable<Project> {
-    return this.http.post<Project>(this.apiUrl + "/", JSON.stringify(workflow));
+    return this.http.post<Project>(this.apiUrl + "/", workflow);
   }
 
   // Update workflow
   updateWorkflow(workflow: Project): Observable<Project> {
-    return this.http.put<Project>(this.apiUrl + "/", JSON.stringify(workflow));
+    return this.http.put<Project>(this.apiUrl + "/", workflow);
   }
 
   // Delete workflow

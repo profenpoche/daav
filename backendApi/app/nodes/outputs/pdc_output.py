@@ -1,5 +1,8 @@
 import asyncio
 import json
+
+from fastapi import logger
+from app.core.execution_context import ExecutionContext
 from app.models.interface.dataset_interface import PTXDataset
 from app.nodes.outputs.output_node import OutputNode
 from app.models.interface.pdc_chain_interface import PdcChainResponse, PdcChainRequest
@@ -39,12 +42,26 @@ class PdcOutput(OutputNode):
     def get_output_file_path(self) -> str:
         """ Return the output file path for this node
         """
+
+        # Get user context for file isolation
+        current_user = ExecutionContext.get_user()        
         safe_filename = PathSecurityValidator.validate_filename(f"{self.id}-output.json")
-        file_path = os.path.join(settings.upload_dir, safe_filename)
+        if current_user:
+            file_path = os.path.join(os.path.join(settings.upload_dir, current_user.id), safe_filename)
+        else:
+            file_path = os.path.join(settings.upload_dir, safe_filename)
         secure_path = PathSecurityValidator.validate_file_path(file_path)
         return secure_path
     
     async def _check_url_uniqueness(self, url: str) -> None:
+        """Check if the URL is already in use by another PdcOutput node.
+        
+        Args:
+            url (str): The URL to check for uniqueness
+            
+        Raises:
+            ValueError: If the URL is already in use by another node
+        """
         matching_nodes = [
             node
             for wf in await self.workflowService.get_workflows()
@@ -68,6 +85,8 @@ class PdcOutput(OutputNode):
         """
         file_path: str = self.get_output_file_path()
         dataset, url = await self._retreiveEndpointConfig()
+
+
 
         try:
             await self._check_url_uniqueness(url)
@@ -96,8 +115,7 @@ class PdcOutput(OutputNode):
                         pdc_response = PdcChainResponse(
                             chainId=chain_id,
                             targetId=target_id,
-                            data=df_dict,
-                            params={"foo": "bar"}
+                            data=df_dict
                         )
 
                     elif isinstance(data, NodeDataParquet):
@@ -114,8 +132,7 @@ class PdcOutput(OutputNode):
                         pdc_response = PdcChainResponse(
                             chainId=chain_id,
                             targetId=target_id,
-                            data=parquet_data,
-                            params={"foo": "bar"}
+                            data=parquet_data
                         )
                     else:
                         raise TypeError(f"Unsopported datatype: {type(data)}")

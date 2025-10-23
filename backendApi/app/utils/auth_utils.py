@@ -1,11 +1,19 @@
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, TypedDict
+from fastapi.datastructures import Headers
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
 from app.models.interface.auth_interface import TokenData
+from app.models.interface.user_interface import User
 from app.config.settings import settings
+
+# Type definitions
+class AuthenticatedUser(TypedDict):
+    """Type for authenticated user with matched credentials"""
+    user: User
+    matched_credentials: Dict[str, str]
 
 # Password hashing context using Argon2id (OWASP recommended 2025)
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
@@ -219,3 +227,57 @@ def ensure_utc_aware(dt: datetime) -> datetime:
     
     # Datetime is already aware, convert to UTC if needed
     return dt.astimezone(timezone.utc)
+
+
+async def authenticate_m2m_credentials(request_headers: Headers, users: List[User]) -> List[AuthenticatedUser]:
+    """
+    Authenticate M2M requests by matching request headers against user credentials.
+    
+    Args:
+        request_headers: HTTP request headers to check against user credentials
+        users: List of User objects to check credentials against
+    
+    Returns:
+        List of authenticated users (with their credentials that matched)
+    """
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        authenticated_users = []
+        
+        for user in users:
+            # Check if user has credentials configured
+            if not user.config or not user.config.credentials:
+                continue
+                
+            user_credentials = user.config.credentials
+            user_matched_credentials = {}
+            
+            # Check if any of the user's credentials match request headers
+            for cred_key, cred_value in user_credentials.items():
+                # Look for the credential key in request headers (case-insensitive)
+                header_value = None
+                for header_name, header_val in request_headers.items():
+                    if header_name.lower() == cred_key.lower():
+                        header_value = header_val
+                        break
+                
+                # If header matches credential value
+                if header_value and header_value == cred_value:
+                    user_matched_credentials[cred_key] = cred_value
+            
+            # If user has at least one matching credential, add to authenticated list
+            if user_matched_credentials:
+                authenticated_users.append({
+                    'user': user,
+                    'matched_credentials': user_matched_credentials
+                })
+                logger.info(f"User {user.username} authenticated via M2M credentials: {list(user_matched_credentials.keys())}")
+        
+        return authenticated_users
+        
+    except Exception as e:
+        logger.error(f"Error during M2M authentication: {str(e)}")
+        return []

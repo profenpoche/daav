@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 import os
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, TYPE_CHECKING
 from urllib.parse import urlparse
 
 import duckdb
@@ -14,7 +14,36 @@ from app.models.interface.dataset_schema import PandasColumn, PandasSchema
 from app.utils.security import PathSecurityValidator
 from fastapi import HTTPException, Request, Header
 
+if TYPE_CHECKING:
+    from app.models.interface.user_interface import User
+
 logger = logging.getLogger(__name__)
+
+def get_user_output_path(node_id: str, user: Optional["User"] = None) -> str:
+    """
+    Get output file path with user isolation.
+    
+    Args:
+        node_id (str): The node ID for the output file
+        user (Optional[User]): The user object (optional, for user-specific directory)
+        
+    Returns:
+        str: The complete file path with user directory if user provided
+    """
+    filename = f"{node_id}-output.json"
+    
+    if user:
+        # Create user-specific directory: uploads/{user_id}/
+        user_upload_dir = os.path.join(settings.upload_dir, user.id)
+        os.makedirs(user_upload_dir, exist_ok=True)
+        file_path = os.path.join(user_upload_dir, filename)
+        logger.info(f"Using user directory for output: {user_upload_dir}")
+        return file_path
+    else:
+        # Fallback to general uploads directory
+        file_path = os.path.join(settings.upload_dir, filename)
+        logger.info(f"Using general directory for output: {settings.upload_dir}")
+        return file_path
 
 # Schéma minimal JSON:API pour validation avec jsonschema
 json_api_schema = {
@@ -537,7 +566,6 @@ def filter_data_with_duckdb(filepath: str, select: Optional[str] = None, where: 
 
 def verify_route_access(
     request: Request,
-    authorization: Optional[str] = None,
     api_keys: Optional[List[Union[str, Dict[str, str]]]] = None
 ) -> bool:
     """
@@ -549,7 +577,6 @@ def verify_route_access(
     
     Args:
         request: FastAPI Request object
-        authorization: Authorization header (format: "Bearer <token>")
         api_keys: List of mixed items:
             - str: Bearer token (e.g., "token123")
             - dict: Custom header (e.g., {"X-API-Key": "value"})
@@ -562,9 +589,9 @@ def verify_route_access(
         
     Examples:
         verify_route_access(request)  # Whitelist only
-        verify_route_access(request, auth, api_keys=["token1", "token2"])  # Bearer tokens
+        verify_route_access(request, api_keys=["token1", "token2"])  # Bearer tokens
         verify_route_access(request, api_keys=[{"X-Key": "val"}])  # Custom headers
-        verify_route_access(request, auth, api_keys=["token1", {"X-Key": "val"}])  # Mixed
+        verify_route_access(request, api_keys=["token1", {"X-Key": "val"}])  # Mixed
     """
     
     # Check domain whitelist from env
@@ -588,7 +615,8 @@ def verify_route_access(
             detail="Access denied. Valid authentication required."
         )
     
-    # Check each api_key (can be string or dict)
+    # Get authorization header from request
+    authorization = request.headers.get("authorization")
     request_headers = dict(request.headers)
     
     for api_key in api_keys:

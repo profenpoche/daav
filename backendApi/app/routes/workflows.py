@@ -1,11 +1,12 @@
 import logging
 from fastapi import APIRouter, HTTPException, status, Body, Depends
 from typing import List, Optional
-import uuid
 from app.models.interface.workflow_interface import IProject
 from app.services.workflow_service import workflow_service
 from app.middleware.auth import CurrentUser
 from app.core.workflow import Workflow
+from app.core.execution_context import ExecutionContext
+from app.models.interface.user_interface import User
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ async def get_workflow(id: str, current_user: CurrentUser) -> IProject:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/", response_model=IProject, status_code=status.HTTP_201_CREATED)
-async def create_workflow(current_user: CurrentUser, workflow_json: str = Body(..., description="JSON string representation of the workflow")) -> IProject:
+async def create_workflow(current_user: CurrentUser, workflow_data: IProject) -> IProject:
     """
     Create a new workflow with ownership assignment.
 
@@ -115,8 +116,8 @@ async def create_workflow(current_user: CurrentUser, workflow_json: str = Body(.
     If no ID is provided, a new UUID will be automatically generated.
 
     Args:
-        workflow_json (str): The JSON string representation of the workflow to create.
-                           Must contain at least 'name' and 'schema' fields.
+        workflow_data (IProject): The workflow data to create.
+                                Must contain at least 'name' field.
 
     Returns:
         IProject: The newly created workflow with generated timestamps.
@@ -130,8 +131,8 @@ async def create_workflow(current_user: CurrentUser, workflow_json: str = Body(.
         POST /workflows/
         Content-Type: application/json
         
-        "{
-            \"name\": \"Data Processing Workflow\",
+        {
+            "name": "Data Processing Workflow",
             \"revision\": \"1.0\",
             \"dataConnectors\": [\"connector-123\", \"connector-456\"],
             \"schema\": {
@@ -320,18 +321,8 @@ async def create_workflow(current_user: CurrentUser, workflow_json: str = Body(.
     try:
         logger.info(f"User {current_user.username} creating new workflow")
         
-        # Parse JSON
-        workflow_data = IProject.model_validate_json(workflow_json)
-        
-        # Generate UUID if not provided
-        if not workflow_data.id:
-            workflow_data.id = str(uuid.uuid4())
-        
-        # Convert to dict for service
-        workflow_dict = workflow_data.model_dump(mode='json')
-        
-        # Create workflow with ownership
-        new_workflow = await workflow_service.create_workflow(workflow_dict, current_user)
+        # Pass IProject directly to service (UUID generated automatically if needed)
+        new_workflow = await workflow_service.create_workflow(workflow_data, current_user)
         logger.info(f"User {current_user.username} successfully created workflow: {new_workflow.name}")
         return new_workflow
         
@@ -340,16 +331,16 @@ async def create_workflow(current_user: CurrentUser, workflow_json: str = Body(.
         raise HTTPException(status_code=500, detail="Failed to create workflow")
 
 @router.put("/", response_model=IProject)
-async def update_workflow(current_user: CurrentUser, workflow_json: str = Body(..., description="JSON string representation of the workflow to update")) -> IProject:
+async def update_workflow(current_user: CurrentUser, workflow_data: IProject) -> IProject:
     """
     Update an existing workflow with permission check.
 
-    This endpoint updates an existing workflow in the database. The workflow ID must be provided
-    in the JSON data to identify which workflow to update.
+    This endpoint updates an existing workflow in the database. Only fields explicitly
+    provided in the request will be updated. System fields (owner_id, created_at) are preserved.
 
     Args:
-        workflow_json (str): The JSON string representation of the updated workflow.
-                           Must include the 'id' field to identify the workflow to update.
+        workflow_data (IProject): The workflow data with fields to update.
+                                Must include the 'id' field to identify the workflow to update.
 
     Returns:
         IProject: The updated workflow with new timestamp.
@@ -364,8 +355,8 @@ async def update_workflow(current_user: CurrentUser, workflow_json: str = Body(.
         PUT /workflows/
         Content-Type: application/json
         
-        "{
-            \"id\": \"workflow-123\",
+        {
+            "id": "workflow-123",
             \"name\": \"Updated Workflow\",
             \"revision\": \"2.0\",
             \"dataConnectors\": [\"connector-1\"],
@@ -393,17 +384,11 @@ async def update_workflow(current_user: CurrentUser, workflow_json: str = Body(.
     try:
         logger.info(f"User {current_user.username} updating workflow")
         
-        # Parse JSON
-        workflow_data = IProject.model_validate_json(workflow_json)
-        
         if not workflow_data.id:
             raise HTTPException(status_code=400, detail="Workflow ID is required for update")
         
-        # Convert to dict for service
-        workflow_dict = workflow_data.model_dump(mode='json')
-        
-        # Update workflow with permission check
-        updated_workflow = await workflow_service.update_workflow(workflow_dict, current_user)
+        # Update workflow with permission check - pass IProject directly
+        updated_workflow = await workflow_service.update_workflow(workflow_data, current_user)
         logger.info(f"User {current_user.username} successfully updated workflow: {updated_workflow.name}")
         return updated_workflow
         
@@ -498,7 +483,7 @@ async def execute_workflow(id: str, current_user: CurrentUser):
     try:
         logger.info(f"User {current_user.username} executing workflow with ID: {id}")
         workflow_data = await workflow_service.get_workflow(id, current_user)
-        result = await import_and_execute_workflow(workflow_data)
+        result = await import_and_execute_workflow(workflow_data, current_user=current_user)
         logger.info(f"User {current_user.username} successfully executed workflow: {id}")
         return result
     except HTTPException:
@@ -552,7 +537,7 @@ async def execute_node(id: str, node_id: str, current_user: CurrentUser):
         if node_id not in [node.id for node in workflow_data.pschema.nodes]:
             raise HTTPException(status_code=404, detail="Node not found in workflow")
         
-        result = await import_and_execute_workflow(workflow_data, node_id=node_id, sample=True)
+        result = await import_and_execute_workflow(workflow_data, node_id=node_id, sample=True, current_user=current_user)
         logger.info(f"User {current_user.username} successfully executed node {node_id} in workflow {id}")
         return result
     except HTTPException:
@@ -611,7 +596,7 @@ async def execute_workflow_json(current_user: CurrentUser, workflow_json: IProje
     """
     try:
         logger.info(f"User {current_user.username} executing workflow from JSON: {workflow_json.name}")
-        result = await import_and_execute_workflow(workflow_json)
+        result = await import_and_execute_workflow(workflow_json, current_user=current_user)
         logger.info(f"User {current_user.username} successfully executed workflow from JSON: {workflow_json.name}")
         return result
     except Exception as e:
@@ -681,7 +666,7 @@ async def execute_node_json(node_id: str, current_user: CurrentUser, workflow: I
         if node_id not in [node.id for node in workflow.pschema.nodes]:
             raise HTTPException(status_code=404, detail="Node not found in workflow")
         
-        result = await import_and_execute_workflow(workflow, node_id=node_id, sample=True)
+        result = await import_and_execute_workflow(workflow, node_id=node_id, sample=True, current_user=current_user)
         logger.info(f"User {current_user.username} successfully executed node {node_id} from workflow JSON")
         return result
     except HTTPException:
@@ -691,7 +676,12 @@ async def execute_node_json(node_id: str, current_user: CurrentUser, workflow: I
         raise HTTPException(status_code=500, detail="Failed to execute node")
 
 
-async def import_and_execute_workflow(workflow_data: IProject, node_id: Optional[str] = None, sample: Optional[bool] = False) -> IProject:
+async def import_and_execute_workflow(
+    workflow_data: IProject, 
+    node_id: Optional[str] = None, 
+    sample: Optional[bool] = False,
+    current_user: Optional[User] = None
+) -> IProject:
     """
     Import and execute workflow.
     
@@ -701,6 +691,7 @@ async def import_and_execute_workflow(workflow_data: IProject, node_id: Optional
         workflow_data (IProject): The workflow to execute.
         node_id (Optional[str]): Specific node to execute (if None, executes all).
         sample (Optional[bool]): Whether to limit execution to sample data.
+        current_user (Optional[User]): The user executing the workflow (for context).
         
     Returns:
         IProject: The updated workflow with execution results.
@@ -709,7 +700,14 @@ async def import_and_execute_workflow(workflow_data: IProject, node_id: Optional
         HTTPException: 500 if execution fails.
     """
     try:
-        logger.info(f"Executing workflow: {workflow_data.name} (Node: {node_id}, Sample: {sample})")
+        # Set execution context
+        if current_user:
+            ExecutionContext.set_user(current_user)
+            logger.info(f"Executing workflow: {workflow_data.name} by user {current_user.username} (Node: {node_id}, Sample: {sample})")
+        else:
+            logger.info(f"Executing workflow: {workflow_data.name} (Node: {node_id}, Sample: {sample})")
+        
+        ExecutionContext.set_workflow(workflow_data)
         
         workflow = Workflow()
         workflow.import_project(workflow_data)
@@ -718,7 +716,10 @@ async def import_and_execute_workflow(workflow_data: IProject, node_id: Optional
         result = workflow.export_updated_project()
         logger.info(f"Successfully executed workflow: {workflow_data.name}")
         return result
-        
     except Exception as e:
-        logger.error(f"Error executing workflow {workflow_data.name}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to execute workflow")
+        logger.error(f"Error executing workflow: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Workflow execution failed: {str(e)}")
+    finally:
+        # Clear execution context to prevent leakage
+        ExecutionContext.clear()
+        logger.debug("Execution context cleared")

@@ -1,6 +1,6 @@
 import logging
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from beanie.operators import In
 
@@ -169,7 +169,7 @@ class UserService(metaclass=SingletonMeta):
                 del update_data["role"]
             
             # Update timestamp
-            update_data["updated_at"] = datetime.utcnow()
+            update_data["updated_at"] = datetime.now(timezone.utc)
             
             # Apply updates
             for key, value in update_data.items():
@@ -243,7 +243,7 @@ class UserService(metaclass=SingletonMeta):
         try:
             user = await self.get_user_by_id(user_id)
             if user:
-                user.last_login = datetime.utcnow()
+                user.last_login = datetime.now(timezone.utc)
                 await user.save()
         except Exception as e:
             logger.error(f"Error updating last login for user {user_id}: {e}")
@@ -280,7 +280,7 @@ class UserService(metaclass=SingletonMeta):
             
             # Hash and set new password
             user.hashed_password = get_password_hash(new_password)
-            user.updated_at = datetime.utcnow()
+            user.updated_at = datetime.now(timezone.utc)
             await user.save()
             
             logger.info(f"Password changed for user: {user.username}")
@@ -322,7 +322,7 @@ class UserService(metaclass=SingletonMeta):
             if config_update.settings is not None:
                 user.config.settings.update(config_update.settings)
             
-            user.updated_at = datetime.utcnow()
+            user.updated_at = datetime.now(timezone.utc)
             await user.save()
             
             logger.info(f"Configuration updated for user: {user.username}")
@@ -718,3 +718,14 @@ class UserService(metaclass=SingletonMeta):
         except Exception as e:
             logger.error(f"Error removing workflow ownership: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to remove workflow ownership")
+        
+
+    async def get_user_from_workflow(self, workflow: IProject) -> Optional[User]:
+        """Get the owner user of a workflow"""
+        try:
+            if not workflow.owner_id:
+                return None
+            return await self.get_user_by_id(workflow.owner_id)
+        except Exception as e:
+            logger.error(f"Error getting user from workflow {workflow.id}: {e}", exc_info=True)
+            return None

@@ -230,9 +230,9 @@ class DatasetService(metaclass=SingletonMeta):
         try:
             logger.info(f"User {user.username} adding new connection: {connection.name} (Type: {connection.type})")
             
-            # Check for duplicates
-            if await self._connection_exists(connection):
-                logger.warning(f"Connection already exists: {connection.name} (Type: {connection.type})")
+            # Check for duplicates for this specific user
+            if await self._connection_exists(connection, user):
+                logger.warning(f"Connection already exists for user {user.username}: {connection.name} (Type: {connection.type})")
                 return {"status": "Dataset already exists"}
             
             # Type-specific processing
@@ -256,13 +256,27 @@ class DatasetService(metaclass=SingletonMeta):
             logger.error(f"Error adding connection {connection.name}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to add connection")
 
-    async def _connection_exists(self, connection: DatasetUnion) -> bool:
-        """Check if a connection already exists by type"""
+    async def _connection_exists(self, connection: DatasetUnion, user: User) -> bool:
+        """Check if a connection already exists for a specific user via their owned datasets"""
+        
+        # First, get all datasets owned by this user
+        user_dataset_ids = user.owned_datasets
+        
+        if not user_dataset_ids:
+            return False
+        
+        # Then check if the specific connection exists among user's datasets
         if isinstance(connection, FileDataset):
             if connection.filePath:
-                existing = await FileDataset.find_one(FileDataset.filePath == connection.filePath)
+                existing = await FileDataset.find_one(
+                    FileDataset.filePath == connection.filePath,
+                    {"_id": {"$in": user_dataset_ids}}
+                )
             elif connection.folder:
-                existing = await FileDataset.find_one(FileDataset.folder == connection.folder)
+                existing = await FileDataset.find_one(
+                    FileDataset.folder == connection.folder,
+                    {"_id": {"$in": user_dataset_ids}}
+                )
             else:
                 existing = None
                 
@@ -270,7 +284,8 @@ class DatasetService(metaclass=SingletonMeta):
             existing = await MongoDataset.find_one(
                 MongoDataset.uri == connection.uri,
                 MongoDataset.database == connection.database,
-                MongoDataset.collection == connection.collection
+                MongoDataset.collection == connection.collection,
+                {"_id": {"$in": user_dataset_ids}}
             )
             
         elif isinstance(connection, MysqlDataset):
@@ -278,20 +293,28 @@ class DatasetService(metaclass=SingletonMeta):
                 MysqlDataset.host == connection.host,
                 MysqlDataset.database == connection.database,
                 MysqlDataset.table == connection.table,
-                MysqlDataset.user == connection.user
+                MysqlDataset.user == connection.user,
+                {"_id": {"$in": user_dataset_ids}}
             )
             
         elif isinstance(connection, ApiDataset):
-            existing = await ApiDataset.find_one(ApiDataset.url == connection.url)
+            existing = await ApiDataset.find_one(
+                ApiDataset.url == connection.url,
+                {"_id": {"$in": user_dataset_ids}}
+            )
             
         elif isinstance(connection, ElasticDataset):
             existing = await ElasticDataset.find_one(
                 ElasticDataset.url == connection.url,
-                ElasticDataset.index == connection.index
+                ElasticDataset.index == connection.index,
+                {"_id": {"$in": user_dataset_ids}}
             )
             
         elif isinstance(connection, PTXDataset):
-            existing = await PTXDataset.find_one(PTXDataset.url == connection.url)
+            existing = await PTXDataset.find_one(
+                PTXDataset.url == connection.url,
+                {"_id": {"$in": user_dataset_ids}}
+            )
             
         else:
             existing = None
@@ -431,7 +454,7 @@ class DatasetService(metaclass=SingletonMeta):
             if not existing:
                 raise HTTPException(status_code=404, detail="Dataset not found")
             
-            dataset.updated_at = datetime.utcnow()
+            dataset.updated_at = datetime.now(timezone.utc)
             await dataset.replace()
             logger.info(f"User {user.username} successfully edited dataset: {dataset.id}")
             return True

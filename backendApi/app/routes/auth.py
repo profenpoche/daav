@@ -2,7 +2,7 @@
 Authentication and user management routes
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -452,12 +452,12 @@ async def deactivate_user(
         
         # Deactivate the user
         user.is_active = False
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now(timezone.utc)
         
         # Store deactivation details in config if reason provided
         if reason:
             user.config.settings["deactivation_reason"] = reason
-            user.config.settings["deactivated_at"] = datetime.utcnow().isoformat()
+            user.config.settings["deactivated_at"] = datetime.now(timezone.utc).isoformat()
             user.config.settings["deactivated_by"] = admin_user.id
         
         await user.save()
@@ -509,7 +509,7 @@ async def activate_user(
         
         # Activate the user
         user.is_active = True
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now(timezone.utc)
         
         # Clear deactivation details from config
         if "deactivation_reason" in user.config.settings:
@@ -520,7 +520,7 @@ async def activate_user(
             del user.config.settings["deactivated_by"]
         
         # Store activation details
-        user.config.settings["reactivated_at"] = datetime.utcnow().isoformat()
+        user.config.settings["reactivated_at"] = datetime.now(timezone.utc).isoformat()
         user.config.settings["reactivated_by"] = admin_user.id
         
         await user.save()

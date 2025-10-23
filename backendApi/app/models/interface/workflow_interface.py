@@ -67,9 +67,9 @@ class IProject(Document):
     name: str
     revision: Optional[str] = None
     dataConnectors: Optional[List[str]] = []
-    pschema: ISchema = Field(..., alias='schema')
-    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    pschema: Optional[ISchema] = Field(default_factory=lambda: ISchema(nodes=[], connections=[]), alias='schema')
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     
     # User ownership and sharing
     owner_id: Optional[str] = Field(default=None, description="ID of the user who owns this workflow")

@@ -53,7 +53,7 @@ class MigrationService:
                     
                     # Check if workflow already exists
                     if not await workflow_service.workflow_exists(validated_workflow.id):
-                        await workflow_service.create_workflow(workflow_data, user)
+                        await workflow_service.create_workflow(validated_workflow, user)
                         migrated_workflows += 1
                         print(f"✅ Migrated workflow: {validated_workflow.name} (ID: {validated_workflow.id})")
                     else:

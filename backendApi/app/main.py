@@ -27,7 +27,7 @@ from app.models.interface.user_interface import User,PasswordResetToken
 from app.services.migration_service import MigrationService
 from app.services.user_service import UserService
 
-from app.routes import datasets, workflows, input, ptx, output, api, auth
+from app.routes import datasets, workflows, ptx, output, api, auth
 from app.middleware.security import SecurityMiddleware
 
 @asynccontextmanager
@@ -158,7 +158,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 app.include_router(auth.router)
 app.include_router(datasets.router)
 app.include_router(workflows.router)
-app.include_router(input.router)
 app.include_router(ptx.router)
 app.include_router(output.router)
 app.include_router(api.router)

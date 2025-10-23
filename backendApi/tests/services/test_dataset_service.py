@@ -270,14 +270,18 @@ async def test_delete_dataset_success(dataset_service, sample_file_dataset, mock
         assert deleted_dataset is None
 
 @pytest.mark.asyncio
-async def test_add_connection_already_exists(dataset_service, sample_file_dataset):
+async def test_add_connection_already_exists_old(dataset_service, sample_file_dataset, mock_user):
     existing_dataset = sample_file_dataset
     dataset = await create_file_dataset_async(
         name="test_file",
         filePath="/same/path.csv"
     )
-    result = await dataset_service.add_connection(dataset)
-    assert result["status"] == "Dataset already exists"
+    # Mock user owns the existing dataset
+    mock_user.owned_datasets = [str(existing_dataset.id)]
+    
+    with patch.object(dataset_service, '_connection_exists', return_value=True):
+        result = await dataset_service.add_connection(dataset, mock_user)
+        assert result["status"] == "Dataset already exists"
 
 @pytest.mark.asyncio
 async def test_process_ptx_dataset(dataset_service, sample_ptx_dataset):
@@ -462,17 +466,23 @@ async def test_add_connection_already_exists(dataset_service, sample_file_datase
         assert result["status"] == "Dataset already exists"
 
 @pytest.mark.asyncio
-async def test_connection_exists_file_dataset(dataset_service, sample_file_dataset):
+async def test_connection_exists_file_dataset(dataset_service, sample_file_dataset, mock_user):
     existing_dataset = sample_file_dataset
+    # Mock user owns this dataset
+    mock_user.owned_datasets = [str(existing_dataset.id)]
+    
     dataset = create_file_dataset_mock(
         name="test_file",
         filePath="/path/to/test.csv"
     )
-    result = await dataset_service._connection_exists(dataset)
+    result = await dataset_service._connection_exists(dataset, mock_user)
     assert result is True
 
 @pytest.mark.asyncio
-async def test_connection_exists_mysql_dataset_not_found(dataset_service):
+async def test_connection_exists_mysql_dataset_not_found(dataset_service, mock_user):
+    # User has no datasets
+    mock_user.owned_datasets = []
+    
     dataset = MysqlDataset(
         name="nonexistent_mysql",
         type="mysql",
@@ -482,8 +492,71 @@ async def test_connection_exists_mysql_dataset_not_found(dataset_service):
         user="test_user",
         password="test_password"
     )
-    result = await dataset_service._connection_exists(dataset)
+    result = await dataset_service._connection_exists(dataset, mock_user)
     assert result is False
+
+@pytest.mark.asyncio
+async def test_connection_exists_different_users_same_path(dataset_service, sample_file_dataset, mock_user):
+    """Test that same file path can exist for different users"""
+    # User 1 owns the dataset
+    user1 = Mock()
+    user1.id = "user1_id"
+    user1.username = "user1"
+    user1.owned_datasets = [str(sample_file_dataset.id)]
+    
+    # User 2 doesn't own it
+    user2 = Mock()
+    user2.id = "user2_id"
+    user2.username = "user2"
+    user2.owned_datasets = []
+    
+    # Check same dataset - user1 should see it exists
+    dataset = create_file_dataset_mock(
+        name="test_file",
+        filePath="/path/to/test.csv"
+    )
+    result_user1 = await dataset_service._connection_exists(dataset, user1)
+    assert result_user1 is True, "User1 should see the dataset exists"
+    
+    # User2 should NOT see it exists (user isolation)
+    result_user2 = await dataset_service._connection_exists(dataset, user2)
+    assert result_user2 is False, "User2 should not see user1's dataset"
+
+@pytest.mark.asyncio
+async def test_add_connection_user_isolation(dataset_service, temp_csv_file, mock_user):
+    """Test that users can add connections with same path independently"""
+    # User 1
+    user1 = Mock()
+    user1.id = "user1_id"
+    user1.username = "user1"
+    user1.owned_datasets = []
+    
+    # User 2
+    user2 = Mock()
+    user2.id = "user2_id"
+    user2.username = "user2"
+    user2.owned_datasets = []
+    
+    # Both users add dataset with same path
+    dataset1 = await create_file_dataset_async(
+        name="user1_dataset",
+        filePath=temp_csv_file
+    )
+    dataset2 = await create_file_dataset_async(
+        name="user2_dataset",
+        filePath=temp_csv_file
+    )
+    
+    with patch.object(dataset_service, '_process_file_dataset', side_effect=lambda x: x), \
+         patch.object(dataset_service.user_service, 'assign_dataset_ownership'):
+        
+        # User1 adds first
+        result1 = await dataset_service.add_connection(dataset1, user1)
+        assert result1["status"] == "Connection added"
+        
+        # User2 can also add (different user scope)
+        result2 = await dataset_service.add_connection(dataset2, user2)
+        assert result2["status"] == "Connection added"
 
 # ===========================
 # PTX TESTS
