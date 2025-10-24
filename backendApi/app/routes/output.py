@@ -77,7 +77,7 @@ async def get_output_from_custom_path(custom_path: str, request: Request,):
             # If user service or function not available, continue without user info
             logger.debug("UserService.get_user_from_workflow not available or failed", exc_info=True)
             user = None
-        if not user:
+        if user:
             authenticated_users: List[AuthenticatedUser] = await authenticate_m2m_credentials(request.headers, [user])
             if not authenticated_users:
                 raise HTTPException(
@@ -190,13 +190,13 @@ async def get_workflow_output(workflow_id: str, request: Request):
             # If user service or function not available, continue without user info
             logger.debug("UserService.get_user_from_workflow not available or failed", exc_info=True)
             user = None
-            if not user:
-                authenticated_users: List[AuthenticatedUser] = await authenticate_m2m_credentials(request.headers, [user])
-                if not authenticated_users:
-                    raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="No valid credentials found in headers"
-                ) 
+        if user:
+            authenticated_users: List[AuthenticatedUser] = await authenticate_m2m_credentials(request.headers, [user])
+            if not authenticated_users:
+                raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No valid credentials found in headers"
+            ) 
         # Construct output file path with user isolation
         file_path = get_user_output_path(node.id, user)
 
