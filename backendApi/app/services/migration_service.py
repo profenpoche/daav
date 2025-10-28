@@ -4,13 +4,14 @@ from typing import Dict, Any
 from pydantic import TypeAdapter
 from app.models.interface.dataset_interface import DatasetUnion
 from app.models.interface.workflow_interface import IProject
+from app.models.interface.user_interface import User
 from app.services.dataset_service import DatasetService
 from app.services.workflow_service import workflow_service
 
 class MigrationService:
     
     @staticmethod
-    async def migrate_from_config_ini():
+    async def migrate_from_config_ini(user: User):
         """Migrate data from config.ini to MongoDB"""
         config_path = "./app/config.ini"
         
@@ -32,7 +33,7 @@ class MigrationService:
                     type_adapter = TypeAdapter(DatasetUnion)
                     validated_dataset = type_adapter.validate_python(conn_data)
                     
-                    result = await dataset_service.add_connection(validated_dataset)
+                    result = await dataset_service.add_connection(validated_dataset, user)
                     if result["status"] == "Connection added":
                         migrated_datasets += 1
                         print(f"✅ Migrated dataset: {validated_dataset.name} ({validated_dataset.type})")
@@ -52,7 +53,7 @@ class MigrationService:
                     
                     # Check if workflow already exists
                     if not await workflow_service.workflow_exists(validated_workflow.id):
-                        await workflow_service.create_workflow(workflow_data)
+                        await workflow_service.create_workflow(validated_workflow, user)
                         migrated_workflows += 1
                         print(f"✅ Migrated workflow: {validated_workflow.name} (ID: {validated_workflow.id})")
                     else:

@@ -2,7 +2,8 @@ import base64
 import json
 import logging
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union, TYPE_CHECKING
+from urllib.parse import urlparse
 
 import duckdb
 import pandas as pd
@@ -11,9 +12,38 @@ from app.config.settings import settings
 from app.models.interface.dataset_interface import Pagination, FileContentResponse
 from app.models.interface.dataset_schema import PandasColumn, PandasSchema
 from app.utils.security import PathSecurityValidator
-from fastapi import HTTPException
+from fastapi import HTTPException, Request, Header
+
+if TYPE_CHECKING:
+    from app.models.interface.user_interface import User
 
 logger = logging.getLogger(__name__)
+
+def get_user_output_path(node_id: str, user: Optional["User"] = None) -> str:
+    """
+    Get output file path with user isolation.
+    
+    Args:
+        node_id (str): The node ID for the output file
+        user (Optional[User]): The user object (optional, for user-specific directory)
+        
+    Returns:
+        str: The complete file path with user directory if user provided
+    """
+    filename = f"{node_id}-output.json"
+    
+    if user:
+        # Create user-specific directory: uploads/{user_id}/
+        user_upload_dir = os.path.join(settings.upload_dir, user.id)
+        os.makedirs(user_upload_dir, exist_ok=True)
+        file_path = os.path.join(user_upload_dir, filename)
+        logger.info(f"Using user directory for output: {user_upload_dir}")
+        return file_path
+    else:
+        # Fallback to general uploads directory
+        file_path = os.path.join(settings.upload_dir, filename)
+        logger.info(f"Using general directory for output: {settings.upload_dir}")
+        return file_path
 
 # Schéma minimal JSON:API pour validation avec jsonschema
 json_api_schema = {
@@ -98,6 +128,40 @@ def convert_numpy_type_to_python(value) -> str:
             elif 'str' in dtype_str or 'object' in dtype_str:
                 return "str"
         return type_name
+
+
+def normalize_dtype_string(dtype) -> str:
+    """Normalize pandas/numpy dtype to avoid deprecated type warnings."""
+    dtype_str = str(dtype)
+    
+    # Map deprecated numpy types to modern equivalents
+    dtype_map = {
+        'bool': 'bool',
+        'int8': 'int',
+        'int16': 'int', 
+        'int32': 'int',
+        'int64': 'int',
+        'uint8': 'int',
+        'uint16': 'int',
+        'uint32': 'int', 
+        'uint64': 'int',
+        'float16': 'float',
+        'float32': 'float',
+        'float64': 'float',
+        'complex64': 'complex',
+        'complex128': 'complex',
+        'object': 'str',
+        'string': 'str',
+        'datetime64': 'datetime',
+        'timedelta64': 'timedelta'
+    }
+    
+    # Check for exact matches or partial matches
+    for np_type, python_type in dtype_map.items():
+        if np_type in dtype_str.lower():
+            return python_type
+            
+    return dtype_str
 
 
 def convert_size(size: str) -> str:
@@ -269,7 +333,7 @@ def generate_pandas_schema(data: pd.DataFrame | pd.Series | dict) -> PandasSchem
             # Basic column info
             col_schema = PandasColumn(
                 name=col_name,
-                dtype=str(data[column].dtype),
+                dtype=normalize_dtype_string(data[column].dtype),
                 nullable=data[column].isnull().any(),
                 count=data[column].notnull().sum(),
                 nested=None
@@ -362,7 +426,7 @@ def generate_pandas_schema(data: pd.DataFrame | pd.Series | dict) -> PandasSchem
                 # Series vide
                 col_schema = PandasColumn(
                     name=array_item_tag,
-                    dtype=str(data.dtype),
+                    dtype=normalize_dtype_string(data.dtype),
                     nullable=True,
                     count=0,
                     nested=None
@@ -498,3 +562,82 @@ def filter_data_with_duckdb(filepath: str, select: Optional[str] = None, where: 
     except Exception as e:
         logger.error(f"Error filtering data with DuckDB: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error filtering data: {str(e)}")
+
+
+def verify_route_access(
+    request: Request,
+    api_keys: Optional[List[Union[str, Dict[str, str]]]] = None
+) -> bool:
+    """
+    Verify route access using domain whitelist or API keys.
+    
+    Checks in order:
+    1. Domain whitelist (from env DOMAIN_WHITELIST)
+    2. API keys (mixed list of Bearer tokens and custom headers)
+    
+    Args:
+        request: FastAPI Request object
+        api_keys: List of mixed items:
+            - str: Bearer token (e.g., "token123")
+            - dict: Custom header (e.g., {"X-API-Key": "value"})
+        
+    Returns:
+        True if access granted
+        
+    Raises:
+        HTTPException: 403 if access denied
+        
+    Examples:
+        verify_route_access(request)  # Whitelist only
+        verify_route_access(request, api_keys=["token1", "token2"])  # Bearer tokens
+        verify_route_access(request, api_keys=[{"X-Key": "val"}])  # Custom headers
+        verify_route_access(request, api_keys=["token1", {"X-Key": "val"}])  # Mixed
+    """
+    
+    # Check domain whitelist from env
+    if settings.domain_whitelist:
+        origin = request.headers.get("origin") or request.headers.get("referer")
+        
+        if origin:
+            parsed = urlparse(origin)
+            domain = parsed.netloc or parsed.path.split('/')[0]
+            
+            for whitelisted_domain in settings.domain_whitelist:
+                if domain == whitelisted_domain or domain.endswith(f".{whitelisted_domain}"):
+                    logger.info(f"Route access granted via domain whitelist: {domain}")
+                    return True
+    
+    # Deny if no api_keys provided
+    if not api_keys:
+        logger.warning(f"Route access denied for request from {request.client.host if request.client else 'unknown'}")
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied. Valid authentication required."
+        )
+    
+    # Get authorization header from request
+    authorization = request.headers.get("authorization")
+    request_headers = dict(request.headers)
+    
+    for api_key in api_keys:
+        # String = Bearer token
+        if isinstance(api_key, str):
+            if authorization and authorization.startswith("Bearer "):
+                token = authorization.replace("Bearer ", "").strip()
+                if token == api_key:
+                    logger.info(f"Route access granted via Bearer token")
+                    return True
+        
+        # Dict = Custom header
+        elif isinstance(api_key, dict):
+            for header_name, expected_value in api_key.items():
+                if header_name in request_headers and request_headers[header_name] == expected_value:
+                    logger.info(f"Route access granted via custom header: {header_name}")
+                    return True
+    
+    # Access denied
+    logger.warning(f"Route access denied for request from {request.client.host if request.client else 'unknown'}")
+    raise HTTPException(
+        status_code=403,
+        detail="Access denied. Valid authentication required."
+    )

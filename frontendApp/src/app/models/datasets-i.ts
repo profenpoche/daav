@@ -47,4 +47,7 @@ export interface DatasetsI {
     token: string,
     refreshToken: string
     ifExist?: 'replace' | 'append'; // Default behavior
+    // Ownership and sharing
+    owner_id?: string;
+    shared_with?: string[];
 }

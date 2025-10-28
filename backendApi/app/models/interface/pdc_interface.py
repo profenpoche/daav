@@ -114,7 +114,7 @@ class LegalPerson(BaseModel):
 
 
 class PdcParticipant(BaseModel):
-    context: str = Field(alias="@context")
+    context: str | None = Field(default=None, alias="@context")
     type: str = Field(alias="@type", default="Participant")
     id: str = Field(alias="_id")
     did: str | None = None

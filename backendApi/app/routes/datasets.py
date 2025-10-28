@@ -1,8 +1,9 @@
 import logging
 import traceback
-from fastapi import APIRouter, Body, HTTPException, Request,status, UploadFile
+from fastapi import APIRouter, Body, HTTPException, Request, status, UploadFile, Depends
 import httpx
 from app.config.security import SecurityConfig
+from app.middleware.auth import CurrentUser
 from app.middleware.security import log_file_access
 from app.models.interface.dataset_interface import DatasetContentResponse, DatasetUnion, ConnectionInfo, DatasetParams, PTXDataset, Pagination, Dataset, MySQLContentResponse, MysqlDataset, MongoContentResponse, MongoDataset, ElasticContentResponse, ElasticDataset, ApiContentResponse, ApiDataset, FileContentResponse, FileDataset
 import xml.etree.ElementTree as ET
@@ -29,31 +30,32 @@ dataset_service = DatasetService()
 UPLOAD_DIR = Path(settings.upload_dir)
 
 @router.get("/")
-async def get_all_datasets():
-    """Get all datasets"""
+async def get_all_datasets(current_user: CurrentUser):
+    """Get all datasets accessible by current user"""
     try:
-        logger.info("Fetching all datasets")
-        datasets = await dataset_service.get_datasets()
+        logger.info(f"User {current_user.username} fetching datasets")
+        datasets = await dataset_service.get_datasets(current_user)
 
-        logger.info(f"Successfully returned {len(datasets)} datasets")
+        logger.info(f"Successfully returned {len(datasets)} datasets to user {current_user.username}")
         return datasets
     except Exception as e:
         logger.error(f"Error fetching datasets: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/{id}")
-async def get_dataset(id: str) -> Dataset:
-    return dataset_service.get_dataset(id)
+async def get_dataset(id: str, current_user: CurrentUser) -> Dataset:
+    """Get a single dataset with permission check"""
+    return await dataset_service.get_dataset(id, current_user)
 
 @router.delete("/{dataset_id}")
-async def delete_dataset(dataset_id: str):
-    """Delete a dataset"""
+async def delete_dataset(dataset_id: str, current_user: CurrentUser):
+    """Delete a dataset with permission check"""
     try:
-        logger.info(f"Deleting dataset with ID: {dataset_id}")
-        success = await dataset_service.delete_dataset(dataset_id)
+        logger.info(f"User {current_user.username} deleting dataset: {dataset_id}")
+        success = await dataset_service.delete_dataset(dataset_id, current_user)
         
         if success:
-            logger.info(f"Successfully deleted dataset: {dataset_id}")
+            logger.info(f"User {current_user.username} successfully deleted dataset: {dataset_id}")
             return {"message": "Dataset deleted successfully"}
         else:
             logger.warning(f"Failed to delete dataset: {dataset_id}")
@@ -66,18 +68,19 @@ async def delete_dataset(dataset_id: str):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.put("/")
-async def edit_dataset(dataset: DatasetUnion) -> bool:
-    return await dataset_service.edit_dataset(dataset)
+async def edit_dataset(dataset: DatasetUnion, current_user: CurrentUser) -> bool:
+    """Edit a dataset with permission check"""
+    return await dataset_service.edit_dataset(dataset, current_user)
 
 @router.post("/")
-async def create_dataset(dataset: DatasetUnion):
-    """Create a new dataset"""
+async def create_dataset(dataset: DatasetUnion, current_user: CurrentUser):
+    """Create a new dataset with ownership assignment"""
     try:
-        logger.info(f"Creating new dataset: {dataset.name} (Type: {dataset.type})")
-        result = await dataset_service.add_connection(dataset)
+        logger.info(f"User {current_user.username} creating new dataset: {dataset.name} (Type: {dataset.type})")
+        result = await dataset_service.add_connection(dataset, current_user)
         
         if result["status"] == "Connection added":
-            logger.info(f"Successfully created dataset: {dataset.name}")
+            logger.info(f"User {current_user.username} successfully created dataset: {dataset.name}")
         else:
             logger.warning(f"Dataset creation failed: {result['status']}")
             
@@ -89,10 +92,12 @@ async def create_dataset(dataset: DatasetUnion):
 @router.post("/uploadFile")
 async def receive_file(
     file: list[UploadFile] | UploadFile,
+    current_user: CurrentUser,
     folder: str = None
 ) -> list:
     """Upload one or multiple files using the configured upload directory with security validation"""
     try:
+        logger.info(f"User {current_user.username} uploading file(s)")
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
         # Si file est une liste, on boucle, sinon on le met dans une liste
@@ -100,7 +105,7 @@ async def receive_file(
         results = []
 
         for f in files:
-            result = await _save_upload_file(f, folder)
+            result = await _save_upload_file(f, current_user, folder)
             results.append(result)
 
         # Retourne la liste si plusieurs fichiers, sinon un seul dict
@@ -112,8 +117,8 @@ async def receive_file(
         logger.error(f"Error uploading file(s): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to upload file(s): {str(e)}")
 
-async def _save_upload_file(file: UploadFile, name: str = None) -> dict:
-    """Traitement et sauvegarde d'un seul fichier UploadFile"""
+async def _save_upload_file(file: UploadFile, current_user: CurrentUser, folder: str = None) -> dict:
+    """Traitement et sauvegarde d'un seul fichier UploadFile avec isolation par utilisateur"""
     # Validation de sécurité du nom de fichier
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
@@ -129,16 +134,31 @@ async def _save_upload_file(file: UploadFile, name: str = None) -> dict:
     filename_parts = safe_filename.split('/')
     final_filename = filename_parts[-1]
 
-    if len(filename_parts) > 1:
+    # create folder per user (user_id) to isolate files
+    user_dir = UPLOAD_DIR / str(current_user.id)
+    user_dir.mkdir(parents=True, exist_ok=True)
+
+    # If an additional folder is specified (folder parameter)
+    if folder:
+        safe_folder = PathSecurityValidator.validate_filename(folder)
+        if '..' in safe_folder or safe_folder.startswith('/') or safe_folder.startswith('\\'):
+            raise HTTPException(status_code=400, detail="Invalid folder name")
+        sub_dir = user_dir / safe_folder
+        sub_dir.mkdir(exist_ok=True)
+        base_dir = sub_dir
+    # If the filename contains a path (old behavior for compatibility)
+    elif len(filename_parts) > 1:
         dir_name = filename_parts[0]
         safe_dir_name = PathSecurityValidator.validate_filename(dir_name)
         if '..' in safe_dir_name or safe_dir_name.startswith('/') or safe_dir_name.startswith('\\'):
             raise HTTPException(status_code=400, detail="Invalid directory name")
-        sub_dir = UPLOAD_DIR / safe_dir_name
+        sub_dir = user_dir / safe_dir_name
         sub_dir.mkdir(exist_ok=True)
-        filepath = sub_dir / (name if name is not None else final_filename)
+        base_dir = sub_dir
     else:
-        filepath = UPLOAD_DIR / (name if name is not None else final_filename)
+        base_dir = user_dir
+
+    filepath = base_dir / final_filename
 
     try:
         validated_path = PathSecurityValidator.validate_file_path(str(filepath), str(UPLOAD_DIR))
@@ -156,15 +176,24 @@ async def _save_upload_file(file: UploadFile, name: str = None) -> dict:
     with open(validated_path, 'wb') as f:
         f.write(content)
 
-    logger.info(f"File uploaded successfully: {validated_path}")
-    result = {"filepath": str(validated_path)}
-    if 'sub_dir' in locals():
-        result["folder"] = str(sub_dir)
+    logger.info(f"User {current_user.username} uploaded file successfully: {validated_path}")
+    result = {"filepath": str(validated_path), "user_dir": str(user_dir)}
+    if base_dir != user_dir:
+        result["folder"] = str(base_dir)
     return result
 
-@router.post("/getContentDataset" ,response_model=DatasetContentResponse)
-async def getContentDataset(request: Request,data: ConnectionInfo)-> DatasetContentResponse:
+@router.post("/getContentDataset", response_model=DatasetContentResponse)
+async def getContentDataset(request: Request, data: ConnectionInfo, current_user: CurrentUser) -> DatasetContentResponse:
+    """Get dataset content with permission check"""
     connection = data.dataset
+    
+    # Check permission if dataset has an ID
+    if hasattr(connection, 'id') and connection.id:
+        can_access = await dataset_service.user_service.can_access_dataset(current_user, connection.id)
+        if not can_access:
+            logger.warning(f"User {current_user.username} denied access to dataset {connection.id}")
+            raise HTTPException(status_code=403, detail="Access denied")
+    
     pagination = data.pagination
     datasetParams = data.datasetParams
     if isinstance(connection, FileDataset):
@@ -189,9 +218,18 @@ async def getContentDataset(request: Request,data: ConnectionInfo)-> DatasetCont
     else :
         raise ValueError("Type de connexion non reconnu")
     
-@router.post("/getDfContentDataset" ,response_model=NodeDataUnion)
-def getDfContentDataset(request: Request,data: ConnectionInfo)-> NodeDataPandasDf:
+@router.post("/getDfContentDataset", response_model=NodeDataUnion)
+async def getDfContentDataset(request: Request, data: ConnectionInfo, current_user: CurrentUser) -> NodeDataPandasDf:
+    """Get dataset dataframe content with permission check"""
     connection = data.dataset
+    
+    # Check permission if dataset has an ID
+    if hasattr(connection, 'id') and connection.id:
+        can_access = await dataset_service.user_service.can_access_dataset(current_user, connection.id)
+        if not can_access:
+            logger.warning(f"User {current_user.username} denied access to dataset {connection.id}")
+            raise HTTPException(status_code=403, detail="Access denied")
+    
     pagination = data.pagination
     datasetParams = data.datasetParams
     if isinstance(connection, FileDataset):
@@ -859,6 +897,9 @@ def getFileContent(connection: FileDataset, pagination: Pagination = None) -> Fi
                 data = AvroFile(connection.filePath)  
             elif connection.filePath.endswith('.xml'):
                 data = XMLFile(connection.filePath)
+            elif connection.filePath.endswith('.txt'):
+                with open(connection.filePath, 'r', encoding='utf-8') as f:
+                    data = [{"text": f.read()}]    
             elif any(connection.filePath.lower().endswith(ext) for ext in [
                 '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp', '.svg',
                 '.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma',

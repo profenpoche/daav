@@ -22,10 +22,12 @@ from app.models.interface.dataset_interface import (
     ApiDataset, ElasticDataset, PTXDataset
 )
 from app.models.interface.workflow_interface import IProject
+from app.models.interface.user_interface import User,PasswordResetToken
 
 from app.services.migration_service import MigrationService
+from app.services.user_service import UserService
 
-from app.routes import datasets, workflows, input, ptx, output, api
+from app.routes import datasets, workflows, ptx, output, api, auth
 from app.middleware.security import SecurityMiddleware
 
 @asynccontextmanager
@@ -43,7 +45,7 @@ async def lifespan(app: FastAPI):
         logger.info("Initializing database connection...")
         await db_config.connect(settings, [
             Dataset,FileDataset, MongoDataset, MysqlDataset,
-            ApiDataset, ElasticDataset, PTXDataset, IProject
+            ApiDataset, ElasticDataset, PTXDataset, IProject, User, PasswordResetToken
         ])
             # Test Beanie après initialisation
         try:
@@ -51,14 +53,29 @@ async def lifespan(app: FastAPI):
             logger.info(f"Beanie test after init: {count} datasets found")
         except Exception as e:
             logger.error(f"Beanie test failed: {e}")
+        
+        # Ensure admin user exists (create default admin if no users exist)
+        logger.info("Checking for admin user...")
+        user_service = UserService()
+        admin = None
+        try:
+            admin = await user_service.ensure_admin_exists()
+            if admin:
+                logger.info(f"Admin user available: {admin.username}")
+        except Exception as e:
+            logger.error(f"Failed to ensure admin exists: {e}", exc_info=True)
+        
         # Run migration if config.ini exists
         if os.path.exists("./app/config.ini"):
-            logger.info("Config.ini found, starting migration...")
-            migration_success = await MigrationService.migrate_from_config_ini()
-            if migration_success:
-                logger.info("Migration completed successfully")
+            if admin:
+                logger.info("Config.ini found, starting migration...")
+                migration_success = await MigrationService.migrate_from_config_ini(admin)
+                if migration_success:
+                    logger.info("Migration completed successfully")
+                else:
+                    logger.warning("Migration completed with warnings")
             else:
-                logger.warning("Migration completed with warnings")
+                logger.error("Cannot run migration: Admin user not available")
         else:
             logger.info("No config.ini found, skipping migration")
         
@@ -138,9 +155,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 # Include ALL routers
+app.include_router(auth.router)
 app.include_router(datasets.router)
 app.include_router(workflows.router)
-app.include_router(input.router)
 app.include_router(ptx.router)
 app.include_router(output.router)
 app.include_router(api.router)

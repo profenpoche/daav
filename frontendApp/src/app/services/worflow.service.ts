@@ -33,12 +33,12 @@ export class WorkflowService extends BaseService {
 
   // Create new workflow
   createWorkflow(workflow: Project): Observable<Project> {
-    return this.http.post<Project>(this.apiUrl + "/", JSON.stringify(workflow));
+    return this.http.post<Project>(this.apiUrl + "/", workflow);
   }
 
   // Update workflow
   updateWorkflow(workflow: Project): Observable<Project> {
-    return this.http.put<Project>(this.apiUrl + "/", JSON.stringify(workflow));
+    return this.http.put<Project>(this.apiUrl + "/", workflow);
   }
 
   // Delete workflow
@@ -64,5 +64,12 @@ export class WorkflowService extends BaseService {
   // Execute specific node from workflow JSON
   executeNodeJson(workflow: Project, nodeId: string): Observable<Project> {
     return this.http.post<Project>(`${this.apiUrl}/execute_node/${nodeId}`, workflow);
+  }
+
+  /**
+   * Clear all workflows from cache (called on logout)
+   */
+  clearWorkflows(): void {
+    this.workflowsSignals.set([]);
   }
 }

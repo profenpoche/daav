@@ -1,6 +1,8 @@
 import urllib.parse
 from typing import Dict, List, Any, Tuple, Optional
 import re
+import logging
+logger = logging.getLogger(__name__)
 
 class DrupalFilterConverter:
     """
@@ -40,7 +42,21 @@ class DrupalFilterConverter:
         self.field_mapping = field_mapping or {}
         
     def parse_query_string(self, query_string: str) -> Dict[str, Any]:
-        """Parse URL query string into filter structure."""
+        """Parse URL query string into filter structure.
+        
+        Example:
+            Input: filter[test][condition][path]=model&filter[test][condition][operator]=STARTS_WITH&filter[test][condition][value]=M
+            Output: {
+                'test': 
+                    {'condition': 
+                        {
+                            'path': 'model', 
+                            'operator': 'STARTS_WITH', 
+                            'value': 'M'
+                        }
+                    }
+                }
+        """
         parsed = urllib.parse.parse_qs(query_string, keep_blank_values=True)
         filters = {}
         
@@ -50,7 +66,7 @@ class DrupalFilterConverter:
                 parts = self._parse_filter_key(key)
                 if parts:
                     self._build_filter_structure(filters, parts, values[0] if values else '')
-                    
+        logger.info(f"Parsed filters: {filters}")         
         return filters
     
     def _parse_filter_key(self, key: str) -> List[str]:
@@ -90,6 +106,18 @@ class DrupalFilterConverter:
         
         Returns:
             Tuple of (where_clause, parameters) for parameterized query
+
+        Example:
+            Input: {
+                'test': {
+                    'condition': {
+                        'path': 'model',
+                        'operator': 'STARTS_WITH',
+                        'value': 'M'
+                    }
+                }
+            }
+            Output: ("model LIKE ?", ['M%'])
         """
         groups = {}
         conditions_by_group = {}  # Stocker les conditions par groupe
@@ -261,6 +289,10 @@ class DrupalFilterConverter:
             
         Returns:
             Tuple of (where_clause, parameters) for parameterized query
+
+        Example:
+            Input: "filter[test][condition][path]=model&filter[test][condition][operator]=STARTS_WITH&filter[test][condition][value]=M"
+            Output: ('model LIKE ?', ['M%'])
         """
         filters = self.parse_query_string(query_string)
         return self.convert_filters_to_where(filters)
