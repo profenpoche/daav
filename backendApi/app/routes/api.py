@@ -10,8 +10,11 @@ from fastapi.responses import JSONResponse
 
 from app.services.workflow_service import WorkflowService
 from app.utils.drupal_filter_converter import DrupalFilterConverter
-from app.utils.utils import filter_data_with_duckdb
+from app.utils.utils import filter_data_with_duckdb, verify_route_access, get_user_output_path
 import logging
+from app.services.user_service import UserService
+from app.models.interface.user_interface import User
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["api"])
@@ -19,26 +22,27 @@ router = APIRouter(prefix="/api", tags=["api"])
 dataset_service = DatasetService()
 workflow_service = WorkflowService()
 drupal_filter_converter = DrupalFilterConverter()
-
-UPLOADS_DIR = os.path.join("app", "uploads")
+user_service = UserService()
 
 @router.get("/{custom_path}")
 async def get_output_from_custom_path(
         custom_path: str, 
-        request: Request, 
-        token: Optional[str] = None
+        request: Request
     ):
     """
     Get output from custom path by searching through workflows with optional filtering.
     Args:
         custom_path (str): The custom URL path to search for
         request (Request): FastAPI request object containing query parameters
-        token (str, optional): Security token to validate access
     Returns:
-        JSONResponse: Filtered or unfiltered output data
+        JSONResponse: JSON output data, filtered if query parameters are provided.
     Raises:
-        HTTPException: 401 if token invalid, 404 if path not found,
-                      500 for server errors
+        HTTPException: 
+            - 403: If access is denied (M2M control)
+            - 404: If no matching ApiOutput node is found.
+            - 500: For workflow execution failures, output generation issues, or unexpected errors.
+    Example of filter:
+            Input: "filter[test][condition][path]=model&filter[test][condition][operator]=STARTS_WITH&filter[test][condition][value]=M"
     """
     try:
         logger.info(f"Searching for output with custom path: {custom_path}")
@@ -60,24 +64,30 @@ async def get_output_from_custom_path(
                     break
             if node:
                 break
-
+        
         if node is None:
             logger.warning(f"No ApiOutput node found with URL: {custom_path}")
             raise HTTPException(status_code=404, detail="No data found with this URL")
 
-        # Validate token if required
-        if tokenInput and token != tokenInput:
-            logger.warning("Invalid token provided")
-            raise HTTPException(status_code=401, detail="Invalid token")
-
-        # Construct output file path
-        file_path = os.path.join(UPLOADS_DIR, f"{node.id}-output.json")
+        # M2M Access Control - Verify route access using tokenInput if present
+        api_keys = [tokenInput] if tokenInput else None
+        verify_route_access(request, api_keys=api_keys)
+        # Attempt to fetch user info from UserService if available
+        try:
+            user = await user_service.get_user_from_workflow(workflow)
+            logger.debug(f"Retrieved user from workflow: {getattr(user, 'id', user)}")
+        except Exception:
+            # If user service or function not available, continue without user info
+            logger.debug("UserService.get_user_from_workflow not available or failed", exc_info=True)
+            user = None
+        # Construct output file path with user isolation
+        file_path = get_user_output_path(node.id, user)
         
         # Execute workflow if output doesn't exist
         if not os.path.isfile(file_path):
             logger.info(f"Output file not found, executing workflow: {workflow.id}")
             try:
-                await import_and_execute_workflow(workflow)
+                await import_and_execute_workflow(workflow, current_user=user)
             except Exception as exec_error:
                 logger.error(f"Workflow execution failed: {exec_error}", exc_info=True)
                 raise HTTPException(
@@ -129,14 +139,21 @@ async def get_output_from_custom_path(
         )
 
 @router.get("/workflow/{workflow_id}")
-async def get_workflow_output(workflow_id: str, request: Request, token: str):
+async def get_workflow_output(
+        workflow_id: str, 
+        request: Request
+    ):
     """
     Get workflow output data with optional filtering.
     Args:
         workflow_id (str): The ID of the workflow
         request (Request): FastAPI request object containing query parameters
     Returns:
-        JSONResponse: Filtered or unfiltered workflow output data
+        JSONResponse: JSON output data, filtered if query parameters are provided.
+    Raises:
+        HTTPException: 
+            - 403: If access is denied (M2M control)
+            - 404: If workflow not found
     """
     try:
         logger.info(f"Getting output for workflow: {workflow_id}")
@@ -156,20 +173,30 @@ async def get_workflow_output(workflow_id: str, request: Request, token: str):
             logger.error(f"No ApiOutput node in workflow: {workflow_id}")
             raise HTTPException(status_code=400, detail="ApiOutput node not found")
     
-        # Validate token
+        # Get expected token for M2M control
         expected_token = api_node.data.get("tokenInput", {}).get("value")
-        if token != expected_token:
-            logger.warning(f"Invalid token provided for workflow: {workflow_id}")
-            raise HTTPException(status_code=401, detail="Invalid token")
         
-        # Construct output file path
-        output_file = os.path.join(UPLOADS_DIR, f"{api_node.id}-output.json")
+        # M2M Access Control - Verify route access using tokenInput if present
+        api_keys = [expected_token] if expected_token else None
+        verify_route_access(request, api_keys=api_keys)
+        
+        # Get user from workflow for file isolation
+        try:
+            user = await user_service.get_user_from_workflow(workflow)
+            logger.debug(f"Retrieved user from workflow: {getattr(user, 'id', user)}")
+        except Exception:
+            # If user service or function not available, continue without user info
+            logger.debug("UserService.get_user_from_workflow not available or failed", exc_info=True)
+            user = None
+        
+        # Construct output file path with user isolation
+        output_file = get_user_output_path(api_node.id, user)
 
         # Execute workflow if output doesn't exist
         if not os.path.isfile(output_file):
             logger.info(f"Output file not found, executing workflow: {workflow_id}")
             try:
-                await import_and_execute_workflow(workflow)
+                await import_and_execute_workflow(workflow, current_user=user)
             except Exception as exec_error:
                 logger.error(f"Workflow execution failed: {exec_error}", exc_info=True)
                 raise HTTPException(
@@ -219,40 +246,6 @@ async def get_workflow_output(workflow_id: str, request: Request, token: str):
             status_code=500,
             detail=f"Internal server error: {str(e)}"
         )
-      
-def verify_bearer(request, expected_token: str):
-    try:
-        if "Authorization" not in request.headers :
-            raise HTTPException(
-                        status_code=401, 
-                        detail='Authorization header missing')
-        token = get_token_auth_header(request.headers["Authorization"])
-        if(token != expected_token):
-            raise HTTPException(
-                status_code=401,
-                detail= "Invalid token")
-    except Exception as e:    
-        raise HTTPException(
-            status_code=401,
-            detail= e.message  if hasattr(e, 'message') else str(e))
-def get_token_auth_header(authorization):
-    parts = authorization.split()
-
-    if parts[0].lower() != "bearer":
-        raise HTTPException(
-            status_code=401, 
-            detail='Authorization header must start with Bearer')
-    elif len(parts) == 1:
-        raise HTTPException(
-            status_code=401, 
-            detail='Authorization token not found')
-    elif len(parts) > 2:
-        raise HTTPException(
-            status_code=401, 
-            detail='Authorization header be Bearer token')
-    
-    token = parts[1]
-    return token
 
 
 

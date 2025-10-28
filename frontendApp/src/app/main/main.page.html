@@ -1,11 +1,14 @@
 <ion-content [fullscreen]="true">
   <ion-split-pane when="xs" contentId="main">
     <ion-menu contentId="main">
-      
+
       <ion-header>
         <ion-toolbar>
           <ion-title id="menu-title">DAAV</ion-title>
           <ion-buttons slot="end">
+              <ion-button (click)="openUserProfile()">
+                <ion-icon name="person-circle" slot="icon-only"></ion-icon>
+              </ion-button>
               <ion-button aria-label="menu de thèmes" (click)="toggleMenu()"><ion-icon [name]="menuIcon"></ion-icon></ion-button>
           </ion-buttons>
         </ion-toolbar>

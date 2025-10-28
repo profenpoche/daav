@@ -251,7 +251,9 @@ class FileAccessMonitor:
         # Access to suspicious paths
         suspicious_paths = ['/etc/', '/proc/', '/sys/', 'C:\\Windows', '..']
         for record in recent_accesses[-10:]:  # Check last 10 accesses
-            if any(suspect in record['file_path'] for suspect in suspicious_paths):
+            # Defensive check: file_path might be None (e.g., URN-based files)
+            file_path = record.get('file_path')
+            if file_path and any(suspect in file_path for suspect in suspicious_paths):
                 return True
         
         return False

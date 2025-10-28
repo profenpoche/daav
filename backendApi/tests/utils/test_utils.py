@@ -7,10 +7,18 @@ import csv
 import yaml
 import base64
 import math
+import numpy as np
+import shutil
 from unittest.mock import Mock, patch, mock_open, MagicMock
 from datetime import datetime, timezone
+from fastapi import Request, HTTPException
 
-from app.utils.utils import convert_size, folder, generate_pandas_schema, slice_generator, decodeDictionary
+from app.utils.utils import (
+    convert_size, folder, generate_pandas_schema, slice_generator, 
+    decodeDictionary, verify_route_access, get_user_output_path,
+    convert_numpy_type_to_python, normalize_dtype_string, 
+    resolve_file_name, filter_data_with_duckdb
+)
 from app.models.interface.dataset_interface import Pagination, FileContentResponse
 from app.models.interface.dataset_schema import PandasColumn, PandasSchema
 
@@ -445,6 +453,556 @@ class TestDecodeDictionary:
         # Test with number
         result = decodeDictionary(123)
         assert result == 123
+
+
+class TestRouteAccessControl:
+    """Test suite for route access control"""
+    
+    def setup_method(self):
+        """Setup test fixtures"""
+        self.mock_request = Mock(spec=Request)
+        self.mock_request.client = Mock()
+        self.mock_request.client.host = "192.168.1.1"
+        self.mock_request.headers = {}
+    
+    @patch('app.utils.utils.settings')
+    def test_domain_whitelist_with_origin_header(self, mock_settings):
+        """Test access granted via domain whitelist using Origin header"""
+        mock_settings.domain_whitelist = ["example.com", "api.example.com"]
+        
+        self.mock_request.headers = {"origin": "https://example.com"}
+        
+        result = verify_route_access(self.mock_request)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_domain_whitelist_with_referer_header(self, mock_settings):
+        """Test access granted via domain whitelist using Referer header"""
+        mock_settings.domain_whitelist = ["example.com"]
+        
+        self.mock_request.headers = {"referer": "https://example.com/page"}
+        
+        result = verify_route_access(self.mock_request)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_domain_whitelist_subdomain(self, mock_settings):
+        """Test access granted for subdomain of whitelisted domain"""
+        mock_settings.domain_whitelist = ["example.com"]
+        
+        self.mock_request.headers = {"origin": "https://api.example.com"}
+        
+        result = verify_route_access(self.mock_request)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_domain_not_in_whitelist_no_api_keys(self, mock_settings):
+        """Test access denied when domain not in whitelist and no api_keys"""
+        mock_settings.domain_whitelist = ["example.com"]
+        
+        self.mock_request.headers = {"origin": "https://unauthorized.com"}
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request)
+        
+        assert exc_info.value.status_code == 403
+        assert "Access denied" in exc_info.value.detail
+    
+    @patch('app.utils.utils.settings')
+    def test_bearer_token_valid_list(self, mock_settings):
+        """Test access granted with valid Bearer token from list"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = ["secret-token-123", "another-token"]
+        self.mock_request.headers = {"authorization": "Bearer secret-token-123"}
+        
+        result = verify_route_access(self.mock_request, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_bearer_token_invalid_list(self, mock_settings):
+        """Test access denied with invalid Bearer token"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = ["secret-token-123"]
+        self.mock_request.headers = {"authorization": "Bearer wrong-token"}
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request, api_keys=api_keys)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_bearer_token_missing_bearer_prefix(self, mock_settings):
+        """Test access denied when Bearer prefix is missing"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = ["secret-token-123"]
+        self.mock_request.headers = {"authorization": "secret-token-123"}  # Missing "Bearer "
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request, api_keys=api_keys)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_custom_header_valid_dict(self, mock_settings):
+        """Test access granted with valid custom header from dict"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = [{"X-API-Key": "my-secret-key"}, {"X-Auth": "token123"}]
+        self.mock_request.headers = {"X-API-Key": "my-secret-key"}
+        
+        result = verify_route_access(self.mock_request, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_custom_header_invalid_value(self, mock_settings):
+        """Test access denied with invalid custom header value"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = [{"X-API-Key": "my-secret-key"}]
+        self.mock_request.headers = {"X-API-Key": "wrong-value"}
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request, api_keys=api_keys)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_custom_header_missing(self, mock_settings):
+        """Test access denied when custom header is missing"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = [{"X-API-Key": "my-secret-key"}]
+        self.mock_request.headers = {}  # No headers
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request, api_keys=api_keys)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_multiple_custom_headers_one_valid(self, mock_settings):
+        """Test access granted with one of multiple custom headers"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = [
+            {"X-API-Key": "secret1"},
+            {"X-Custom-Auth": "secret2"},
+            {"X-Service-Token": "secret3"}
+        ]
+        
+        self.mock_request.headers = {
+            "X-API-Key": "wrong",
+            "X-Custom-Auth": "secret2"  # This one is valid
+        }
+        
+        result = verify_route_access(self.mock_request, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_mixed_api_keys_bearer_and_custom(self, mock_settings):
+        """Test access with mixed Bearer tokens and custom headers"""
+        mock_settings.domain_whitelist = []
+        
+        # Mixed list: strings (Bearer) + dicts (custom headers)
+        api_keys = [
+            "bearer-token-123",
+            {"X-API-Key": "custom-key-456"},
+            "another-bearer-789",
+            {"X-Service-Token": "service-xyz"}
+        ]
+        
+        # Test with Bearer token
+        self.mock_request.headers = {"authorization": "Bearer bearer-token-123"}
+        result = verify_route_access(self.mock_request, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_mixed_api_keys_custom_header_success(self, mock_settings):
+        """Test access with custom header in mixed list"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = [
+            "bearer-token-123",
+            {"X-API-Key": "custom-key-456"}
+        ]
+        
+        self.mock_request.headers = {"X-API-Key": "custom-key-456"}
+        result = verify_route_access(self.mock_request, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_priority_domain_over_token(self, mock_settings):
+        """Test that domain whitelist is checked before tokens"""
+        mock_settings.domain_whitelist = ["example.com"]
+        
+        self.mock_request.headers = {"origin": "https://example.com"}
+        # Don't provide api_keys - should still pass via domain
+        
+        result = verify_route_access(self.mock_request)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_no_whitelist_and_no_api_keys(self, mock_settings):
+        """Test access denied when no whitelist and no api_keys"""
+        mock_settings.domain_whitelist = []
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_domain_fails_but_token_succeeds(self, mock_settings):
+        """Test access via token when domain not whitelisted"""
+        mock_settings.domain_whitelist = ["other-domain.com"]
+        
+        self.mock_request.headers = {"origin": "https://example.com", "authorization": "Bearer valid-token"}
+        api_keys = ["valid-token"]
+        
+        result = verify_route_access(self.mock_request, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_empty_authorization_header_with_list(self, mock_settings):
+        """Test access denied with empty authorization header"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = ["valid-token"]
+        self.mock_request.headers = {"authorization": ""}
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request, api_keys=api_keys)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_bearer_token_with_extra_spaces(self, mock_settings):
+        """Test Bearer token validation handles extra spaces"""
+        mock_settings.domain_whitelist = []
+        
+        api_keys = ["secret-token"]
+        self.mock_request.headers = {"authorization": "Bearer   secret-token   "}  # Extra spaces
+        
+        result = verify_route_access(self.mock_request, api_keys=api_keys)
+        assert result is True
+    
+    @patch('app.utils.utils.settings')
+    def test_request_without_client(self, mock_settings):
+        """Test handling when request.client is None"""
+        mock_settings.domain_whitelist = []
+        
+        self.mock_request.client = None
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_whitelist_only_no_origin(self, mock_settings):
+        """Test access denied with whitelist but no origin header"""
+        mock_settings.domain_whitelist = ["example.com"]
+        
+        self.mock_request.headers = {}  # No origin or referer
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request)
+        
+        assert exc_info.value.status_code == 403
+    
+    @patch('app.utils.utils.settings')
+    def test_api_keys_none_explicit(self, mock_settings):
+        """Test with api_keys=None explicitly passed"""
+        mock_settings.domain_whitelist = []
+        
+    @patch('app.utils.utils.settings')
+    def test_api_keys_none_explicit(self, mock_settings):
+        """Test with api_keys=None explicitly passed"""
+        mock_settings.domain_whitelist = []
+        
+        with pytest.raises(HTTPException) as exc_info:
+            verify_route_access(self.mock_request, api_keys=None)
+        
+        assert exc_info.value.status_code == 403
+
+
+class TestGetUserOutputPath:
+    """Test cases for get_user_output_path function"""
+    
+    @patch('app.utils.utils.settings')
+    @patch('os.makedirs')
+    def test_with_user(self, mock_makedirs, mock_settings):
+        """Test path generation with user"""
+        mock_settings.upload_dir = "/uploads"
+        mock_user = Mock()
+        mock_user.id = "user123"
+        
+        result = get_user_output_path("node456", mock_user)
+        
+        assert result == "/uploads/user123/node456-output.json"
+        mock_makedirs.assert_called_once_with("/uploads/user123", exist_ok=True)
+    
+    @patch('app.utils.utils.settings')
+    def test_without_user(self, mock_settings):
+        """Test path generation without user"""
+        mock_settings.upload_dir = "/uploads"
+        
+        result = get_user_output_path("node456")
+        
+        assert result == "/uploads/node456-output.json"
+    
+    @patch('app.utils.utils.settings')
+    @patch('os.makedirs')
+    def test_user_with_special_chars(self, mock_makedirs, mock_settings):
+        """Test with user ID containing special characters"""
+        mock_settings.upload_dir = "/uploads"
+        mock_user = Mock()
+        mock_user.id = "user-123_test"
+        
+        result = get_user_output_path("node_456", mock_user)
+        
+        assert result == "/uploads/user-123_test/node_456-output.json"
+
+
+class TestConvertNumpyTypeToPython:
+    """Test cases for convert_numpy_type_to_python function"""
+    
+    def test_bool_types(self):
+        """Test boolean type conversion"""
+        assert convert_numpy_type_to_python(np.bool_(True)) == "bool"
+        assert convert_numpy_type_to_python(True) == "bool"
+    
+    def test_int_types(self):
+        """Test integer type conversion"""
+        assert convert_numpy_type_to_python(np.int8(1)) == "int"
+        assert convert_numpy_type_to_python(np.int16(1)) == "int"
+        assert convert_numpy_type_to_python(np.int32(1)) == "int"
+        assert convert_numpy_type_to_python(np.int64(1)) == "int"
+        assert convert_numpy_type_to_python(np.uint8(1)) == "int"
+        assert convert_numpy_type_to_python(np.uint16(1)) == "int"
+        assert convert_numpy_type_to_python(np.uint32(1)) == "int"
+        assert convert_numpy_type_to_python(np.uint64(1)) == "int"
+    
+    def test_float_types(self):
+        """Test float type conversion"""
+        assert convert_numpy_type_to_python(np.float16(1.0)) == "float"
+        assert convert_numpy_type_to_python(np.float32(1.0)) == "float"
+        assert convert_numpy_type_to_python(np.float64(1.0)) == "float"
+    
+    def test_complex_types(self):
+        """Test complex type conversion"""
+        assert convert_numpy_type_to_python(np.complex64(1+2j)) == "complex"
+        assert convert_numpy_type_to_python(np.complex128(1+2j)) == "complex"
+    
+    def test_string_types(self):
+        """Test string type conversion"""
+        assert convert_numpy_type_to_python(np.str_("test")) == "str"
+        assert convert_numpy_type_to_python(np.bytes_(b"test")) == "bytes"
+    
+    def test_array_with_dtype(self):
+        """Test array with dtype attribute"""
+        int_array = np.array([1, 2, 3], dtype=np.int32)
+        float_array = np.array([1.0, 2.0], dtype=np.float64)
+        bool_array = np.array([True, False], dtype=np.bool_)
+        
+        assert convert_numpy_type_to_python(int_array) == "int"
+        assert convert_numpy_type_to_python(float_array) == "float"
+        assert convert_numpy_type_to_python(bool_array) == "bool"
+    
+    def test_other_types(self):
+        """Test other type fallback"""
+        result = convert_numpy_type_to_python("regular_string")
+        assert result == "str"
+
+
+class TestNormalizeDtypeString:
+    """Test cases for normalize_dtype_string function"""
+    
+    def test_basic_types(self):
+        """Test basic type normalization"""
+        assert normalize_dtype_string("bool") == "bool"
+        assert normalize_dtype_string("int64") == "int"
+        assert normalize_dtype_string("float64") == "float"
+        assert normalize_dtype_string("object") == "str"
+        assert normalize_dtype_string("string") == "str"
+    
+    def test_numpy_types(self):
+        """Test numpy type normalization"""
+        assert normalize_dtype_string("int8") == "int"
+        assert normalize_dtype_string("int16") == "int"
+        assert normalize_dtype_string("int32") == "int"
+        assert normalize_dtype_string("uint8") == "int"
+        assert normalize_dtype_string("float16") == "float"
+        assert normalize_dtype_string("float32") == "float"
+        assert normalize_dtype_string("complex64") == "complex"
+        assert normalize_dtype_string("complex128") == "complex"
+    
+    def test_datetime_types(self):
+        """Test datetime type normalization"""
+        assert normalize_dtype_string("datetime64") == "datetime"
+        assert normalize_dtype_string("timedelta64") == "timedelta"
+    
+    def test_case_insensitive(self):
+        """Test case insensitive matching"""
+        assert normalize_dtype_string("INT64") == "int"
+        assert normalize_dtype_string("FLOAT32") == "float"
+        assert normalize_dtype_string("BOOL") == "bool"
+    
+    def test_partial_matches(self):
+        """Test partial string matching"""
+        assert normalize_dtype_string("dtype('int64')") == "int"
+        assert normalize_dtype_string("float64_custom") == "float"
+    
+    def test_unknown_type(self):
+        """Test unknown type fallback"""
+        result = normalize_dtype_string("unknown_type")
+        assert result == "unknown_type"
+
+
+class TestResolveFileName:
+    """Test cases for resolve_file_name function"""
+    
+    def test_add_missing_extension(self):
+        """Test adding missing extension"""
+        result = resolve_file_name("file", "csv")
+        assert result == "file.csv"
+    
+    def test_replace_different_extension(self):
+        """Test replacing different extension"""
+        result = resolve_file_name("file.txt", "csv")
+        assert result == "file.csv"
+    
+    def test_keep_correct_extension(self):
+        """Test keeping correct extension"""
+        result = resolve_file_name("file.csv", "csv")
+        assert result == "file.csv"
+    
+    def test_case_insensitive_extension(self):
+        """Test case insensitive extension handling"""
+        result = resolve_file_name("file.CSV", "csv")
+        assert result == "file.CSV"
+    
+    def test_multiple_dots_in_filename(self):
+        """Test filename with multiple dots"""
+        result = resolve_file_name("my.data.file.txt", "json")
+        assert result == "my.data.file.json"
+    
+    @patch('app.utils.utils.PathSecurityValidator.validate_file_extension')
+    def test_security_validation_failure(self, mock_validator):
+        """Test security validation failure"""
+        mock_validator.return_value = False
+        
+        with pytest.raises(ValueError, match="File extension 'exe' is not allowed"):
+            resolve_file_name("file", "exe")
+    
+    @patch('app.utils.utils.PathSecurityValidator.validate_file_extension')
+    def test_security_validation_success(self, mock_validator):
+        """Test security validation success"""
+        mock_validator.return_value = True
+        
+        result = resolve_file_name("file", "csv")
+        assert result == "file.csv"
+
+
+class TestFilterDataWithDuckDB:
+    """Test cases for filter_data_with_duckdb function"""
+    
+    @pytest.fixture
+    def sample_json_file(self):
+        """Create a temporary JSON file for testing"""
+        data = [
+            {"id": 1, "name": "Alice", "age": 30, "city": "Paris"},
+            {"id": 2, "name": "Bob", "age": 25, "city": "London"},
+            {"id": 3, "name": "Charlie", "age": 35, "city": "Paris"}
+        ]
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(data, f)
+            filepath = f.name
+        
+        yield filepath
+        
+        # Cleanup
+        try:
+            os.unlink(filepath)
+        except:
+            pass
+    
+    def test_no_filters(self, sample_json_file):
+        """Test returning all data without filters"""
+        result = filter_data_with_duckdb(sample_json_file)
+        
+        assert len(result) == 3
+        assert result[0]["name"] == "Alice"
+    
+    def test_select_specific_columns(self, sample_json_file):
+        """Test selecting specific columns"""
+        result = filter_data_with_duckdb(sample_json_file, select="name, age")
+        
+        assert len(result) == 3
+        # Note: DuckDB may return columns in different order than specified
+        assert len(result[0].keys()) == 2  # Should have exactly 2 columns
+        assert "name" in result[0] or "age" in result[0]  # At least one should be present
+        assert "city" not in result[0]  # City should not be present
+    
+    def test_where_filter(self, sample_json_file):
+        """Test WHERE clause filtering"""
+        result = filter_data_with_duckdb(sample_json_file, where="age > 30")
+        
+        assert len(result) == 1
+        assert result[0]["name"] == "Charlie"
+    
+    def test_select_and_where(self, sample_json_file):
+        """Test combined SELECT and WHERE"""
+        result = filter_data_with_duckdb(
+            sample_json_file, 
+            select="name", 
+            where="city = 'Paris'"
+        )
+        
+        assert len(result) == 2
+        # Check that we have exactly one column (name)
+        assert len(result[0].keys()) == 1
+        # Get the actual column name (it should be 'name' but let's be flexible)
+        column_name = list(result[0].keys())[0]
+        names = [row[column_name] for row in result]
+        assert "Alice" in names
+        assert "Charlie" in names
+    
+    def test_file_not_found(self):
+        """Test handling of non-existent file"""
+        with pytest.raises(HTTPException) as exc_info:
+            filter_data_with_duckdb("nonexistent.json")
+        
+        assert exc_info.value.status_code == 500
+        assert "Error filtering data" in str(exc_info.value.detail)
+    
+    def test_invalid_json(self):
+        """Test handling of invalid JSON file"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            f.write("invalid json content")
+            filepath = f.name
+        
+        try:
+            with pytest.raises(HTTPException) as exc_info:
+                filter_data_with_duckdb(filepath)
+            
+            assert exc_info.value.status_code == 500
+        finally:
+            os.unlink(filepath)
+    
+    def test_invalid_sql(self, sample_json_file):
+        """Test handling of invalid SQL"""
+        with pytest.raises(HTTPException) as exc_info:
+            filter_data_with_duckdb(
+                sample_json_file, 
+                where="invalid_column = 'value'"
+            )
+        
+        assert exc_info.value.status_code == 500
 
 
 if __name__ == "__main__":

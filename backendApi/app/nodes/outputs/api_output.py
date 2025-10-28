@@ -4,6 +4,7 @@ import traceback
 from typing import Any, Optional
 
 import duckdb
+from app.core.execution_context import ExecutionContext
 from app.enums.status_node import StatusNode
 from app.nodes.outputs.output_node import OutputNode
 from app import main
@@ -31,8 +32,14 @@ class ApiOutput(OutputNode):
     def get_output_file_path(self) -> str:
         """ Return the output file path for this node
         """
+
+        # Get user context for file isolation
+        current_user = ExecutionContext.get_user()        
         safe_filename = PathSecurityValidator.validate_filename(f"{self.id}-output.json")
-        file_path = os.path.join(settings.upload_dir, safe_filename)
+        if current_user:
+            file_path = os.path.join(os.path.join(settings.upload_dir, current_user.id), safe_filename)
+        else:
+            file_path = os.path.join(settings.upload_dir, safe_filename)
         secure_path = PathSecurityValidator.validate_file_path(file_path)
         return secure_path
     

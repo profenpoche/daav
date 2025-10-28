@@ -12,6 +12,10 @@ export abstract class Dataset {
     parentFolder?: Folder;
     type: DatasetType;
     dashboardComponent: any = DashboardComponent
+    // Ownership and sharing
+    owner_id?: string;
+    shared_with?: string[];
+
     constructor(dataset?: DatasetsI) {
         if (dataset) {
             this.id = dataset.id;
@@ -19,6 +23,8 @@ export abstract class Dataset {
             this.description = dataset.description;
             this.parentFolder = dataset.parentFolder;
             this.type = dataset.type;
+            this.owner_id = dataset.owner_id;
+            this.shared_with = dataset.shared_with;
         }
     }
 }

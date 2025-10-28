@@ -22,6 +22,10 @@ class Dataset(Document):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
+    # User ownership and sharing
+    owner_id: Optional[str] = Field(default=None, description="ID of the user who owns this dataset")
+    shared_with: List[str] = Field(default_factory=list, description="List of user IDs this dataset is shared with")
+    
     @before_event(Insert)
     async def generate_string_id(self):
         """Générer un ID string avant l'insertion"""
@@ -39,7 +43,8 @@ class Dataset(Document):
         indexes = [
             [("type", 1)],
             [("name", 1)],
-            [("created_at", -1)]
+            [("created_at", -1)],
+            [("owner_id", 1)]
         ]
     
     @model_serializer(mode='wrap')

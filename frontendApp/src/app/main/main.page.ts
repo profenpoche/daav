@@ -6,6 +6,8 @@ import { DatasetsModalComponent } from '../components/datasets-modal/datasets-mo
 import { TransformationModalComponent } from '../components/transformation-modal/transformation-modal.component';
 import { WorkflowPage } from '../pages/worflow/workflow.page';
 import { Project } from '../models/interfaces/project';
+import { UserProfileComponent } from '../components/user-profile/user-profile.component';
+import { ModalController } from '@ionic/angular';
 
 enum Tabs {
   datasets,
@@ -72,7 +74,7 @@ export class MainPage {
 
 fonts: string[] = ["poppins", "OpenDyslexic"]
 
-  constructor( private cd: ChangeDetectorRef, public datasetService : DatasetService, public loadingService: LoadingService) {
+  constructor( private cd: ChangeDetectorRef, public datasetService : DatasetService, public loadingService: LoadingService,private modalController: ModalController) {
     this.applyTheme(localStorage.getItem("theme"))
     this.applyFont(localStorage.getItem("font"))
   }
@@ -157,5 +159,15 @@ fonts: string[] = ["poppins", "OpenDyslexic"]
     }
 
     localStorage.setItem("font", value);
+  }
+
+    /**
+   * Open user profile modal
+   */
+  async openUserProfile() {
+    const modal = await this.modalController.create({
+      component: UserProfileComponent
+    });
+    return await modal.present();
   }
 }

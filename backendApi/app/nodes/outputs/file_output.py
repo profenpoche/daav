@@ -16,6 +16,7 @@ from app.utils.utils import resolve_file_name
 from app.utils.security import PathSecurityValidator
 from app.config.settings import settings
 from app.services.workflow_service import WorkflowService
+from app.core.execution_context import ExecutionContext
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,20 @@ class FileOutput(OutputNode):
                 output_file = PathSecurityValidator.validate_file_path(dataset.filePath)
             elif fileName:
                 resolved_filename = resolve_file_name(fileName, fileType)
-                output_file = os.path.join(settings.upload_dir, resolved_filename)
+                
+                # Get user context for file isolation
+                current_user = ExecutionContext.get_user()
+                
+                if current_user:
+                    # Create user-specific directory: uploads/{user_id}/
+                    user_upload_dir = os.path.join(settings.upload_dir, current_user.id)
+                    os.makedirs(user_upload_dir, exist_ok=True)
+                    output_file = os.path.join(user_upload_dir, resolved_filename)
+                    logger.info(f"Creating file in user directory: {user_upload_dir}")
+                else:
+                    # Fallback to general uploads directory
+                    output_file = os.path.join(settings.upload_dir, resolved_filename)
+                    logger.info(f"Creating file in general directory: {settings.upload_dir}")
             else:
                 raise ValueError("No output file specified")
             for input in self.inputs.values():
@@ -102,16 +116,29 @@ class FileOutput(OutputNode):
                         
                         # Create and save new dataset AFTER the file has been created successfully
                         if dataset is None and fileName:
+                            # Get execution context for user information
+                            current_user = ExecutionContext.get_user()
+                            workflow = ExecutionContext.get_workflow()
+                            
+                            if current_user:
+                                logger.info(f"User {current_user.username} creating dataset in workflow {workflow.name if workflow else 'unknown'}")
+                            
                             new_dataset = self._create_file_dataset(output_file, fileType, delimiter, encoding)
-                            await self.datasetService.add_connection(new_dataset)
-                            print(f"Created new dataset: {new_dataset.name}")
-                            self.data['selectDataSource']["value"] =  new_dataset.id
-                            self.data['selectDataSource']["list"].append({
-                                "value": new_dataset.id,
-                                "label": new_dataset.name
-                            })
-                            self.data['fileName']["value"] = None
-                            self.data['fileName']["label"] = None
+                            
+                            # Add connection with user context if available
+                            if current_user:
+                                await self.datasetService.add_connection(new_dataset, current_user)
+                                logger.info(f"Created new dataset: {new_dataset.name} for user {current_user.username}")
+                                self.data['selectDataSource']["value"] =  new_dataset.id
+                                self.data['selectDataSource']["list"].append({
+                                    "value": new_dataset.id,
+                                    "label": new_dataset.name
+                                })
+                                self.data['fileName']["value"] = None
+                                self.data['fileName']["label"] = None
+                            else:
+                                logger.warning("No user context available for dataset creation")
+                                # You could handle this case differently or skip dataset creation                                
                         break
                         
                     elif isinstance(data, NodeDataParquet):
@@ -154,16 +181,23 @@ class FileOutput(OutputNode):
                         
                         # Create and save new dataset AFTER the file has been created successfully
                         if dataset is None and fileName:
+                            # Get execution context for user information  
+                            current_user = ExecutionContext.get_user()
+                            
                             new_dataset = self._create_file_dataset(output_file, fileType, delimiter, encoding)
-                            await self.datasetService.add_connection(new_dataset)
-                            print(f"Created new dataset: {new_dataset.name}")
-                            self.data['selectDataSource']["value"] =  new_dataset.id
-                            self.data['selectDataSource']["list"].append({
-                                "value": new_dataset.id,
-                                "label": new_dataset.name
-                            })
-                            self.data['fileName']["value"] = None
-                            self.data['fileName']["label"] = None
+                            if current_user:
+                                await self.datasetService.add_connection(new_dataset, current_user)
+                                logger.info(f"Created new dataset: {new_dataset.name} for user {current_user.username}")
+                                self.data['selectDataSource']["value"] =  new_dataset.id
+                                self.data['selectDataSource']["list"].append({
+                                    "value": new_dataset.id,
+                                    "label": new_dataset.name
+                                })
+                                self.data['fileName']["value"] = None
+                                self.data['fileName']["label"] = None
+                            else:
+                                logger.warning("No user context available for dataset creation")
+                                # You could handle this case differently or skip dataset creation         
                         break
                     else:
                         raise TypeError("Unsupported data type: {}".format(type(data)))

@@ -11,7 +11,8 @@ import pyarrow.parquet as pq
 import tempfile
 import os
 from app.utils.security import PathSecurityValidator
-
+import logging
+logger = logging.getLogger(__name__)
 
 class Source(BaseModel):
     id: str
@@ -47,8 +48,8 @@ class FilterTransform(TransformNode):
             dataSource, filterRules, parquetSave = self._retreiveFilterData()
 
             if not filterRules:
-                whereClause = "1=1"
-                raise("WARNING: No filter rules")
+                self.statusMessage = "WARNING: No filter rules"
+                return StatusNode.Error
             
             else:
                 try:
@@ -57,8 +58,8 @@ class FilterTransform(TransformNode):
                         whereClause = "1=1" 
 
                 except Exception as e:
-                    whereClause = "1=1"
-                    raise(f"ERROR IN PROCESS_CONDITION {e}")
+                    self.statusMessage = f"Error in filter conditions: {str(e)}"
+                    return StatusNode.Error
             
             source_data = self.inputs[dataSource].get_node_data()
 
@@ -69,12 +70,38 @@ class FilterTransform(TransformNode):
                     conn = duckdb.connect()
                     conn.register('source_table', data)
 
-                    #query = f"SELECT * FROM data WHERE contains(Name, 'James')"
-                    query = f"SELECT * FROM data WHERE {whereClause}"
-                    print(query)
+                    query = f"SELECT * FROM source_table WHERE {whereClause}"
+                    logger.info(f"Executing query: {query}")
                     result_df = conn.execute(query).fetchdf()
                     conn.close()
+
+                    # Check if result is empty
+                    if result_df.empty:
+                        self.statusMessage = "No data matches the filter conditions"
+                        return StatusNode.Error
                     
+                    # Create node data output
+                    if sample:
+                        self.outputs.get('out').set_node_data(
+                            NodeDataPandasDf(
+                                nodeSchema=generate_pandas_schema(result_df),
+                                dataExample=result_df, 
+                                name="Filtered Data"
+                            ),
+                            self
+                        )
+                    else:
+                        self.outputs.get('out').set_node_data(
+                            NodeDataPandasDf(
+                                nodeSchema=generate_pandas_schema(result_df),
+                                data=result_df,
+                                dataExample=result_df.head(20), 
+                                name="Filtered Data"
+                            ),
+                            self
+                        )
+                    return StatusNode.Valid
+
                 elif(isinstance(source_data, NodeDataParquet)):
                     """ Process treatement using duckDB if source node is parquet """
                     file_path = PathSecurityValidator.validate_file_path(source_data.data)
@@ -83,13 +110,21 @@ class FilterTransform(TransformNode):
                     conn = duckdb.connect()
                     conn.register('source_table', data)
 
-                    query = f"SELECT * FROM data WHERE {whereClause}"
+                    query = f"SELECT * FROM source_table WHERE {whereClause}"
                     print(query)
                     result_df = conn.execute(query).fetchdf()
                     conn.close()
 
+                    # Add empty result check here too
+                    if result_df.empty:
+                        self.statusMessage = "No data matches the filter conditions"
+                        return StatusNode.Error
+
                 else:
                     raise ValueError("Unkown data input")
+                
+                if result_df is None:
+                    raise ValueError("No data after filter")
                 
                 if sample:
                     self.outputs.get('out').set_node_data(NodeDataPandasDf(
@@ -139,6 +174,11 @@ class FilterTransform(TransformNode):
                 else:
                     raise ValueError("Unkown data input")
                 
+                # Add check for empty result in parquet case
+                if not os.path.getsize(result_parquet):
+                    self.statusMessage = "No data matches the filter conditions"
+                    return StatusNode.Error
+                
                 # Create the node data output
                 parquet_file = pq.ParquetFile(result_parquet)
                 schema = parquet_file.schema
@@ -151,9 +191,8 @@ class FilterTransform(TransformNode):
                 return StatusNode.Valid
 
         except Exception as e:
-            traceback.print_exc()
+            self.statusMessage = str(e)
             self.errorStackTrace = traceback.TracebackException.from_exception(e).format()
-            self.statusMessage = e.__str__()
             return StatusNode.Error  
     
     def _retreiveFilterData(self):

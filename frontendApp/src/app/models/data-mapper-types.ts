@@ -227,7 +227,7 @@ export class DataMapperUtils {
     if (/(_id|Id|id)$/i.test(fieldName)) {
       return 'id';
     }
-    if (type === 'int64' || type === 'float64') {
+    if (type === 'int' || type === 'float') {
       if (fieldName === 'price' || fieldName === 'cost') {
         return 'currency';
       } else {

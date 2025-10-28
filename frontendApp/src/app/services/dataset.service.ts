@@ -46,7 +46,6 @@ export class DatasetService extends BaseService {
 
   constructor(private http: HttpClient) {
     super();
-    this.get();
   }
   exportDaav(projectDaav: Project) {
     return new Promise<Array<string>>((resolve, reject) => {
@@ -276,5 +275,12 @@ export class DatasetService extends BaseService {
       throw error;
     }
     return null; // Ensure all code paths return a value
+  }
+
+  /**
+   * Clear all datasets from cache (called on logout)
+   */
+  clearDatasets(): void {
+    this.datasetsSignal.set([]);
   }
 }

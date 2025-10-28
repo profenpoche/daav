@@ -1,11 +1,12 @@
 import base64
-from datetime import timedelta
+from datetime import timedelta, datetime
 import json
 import os
 from pathlib import Path
 import re
 import time
 import traceback
+from typing import List
 from fastapi import APIRouter, BackgroundTasks, Header, status, Request, Response , HTTPException
 from app.models.interface.dataset_interface import *
 import requests
@@ -14,6 +15,7 @@ import httpx
 import asyncio
 import pyarrow as pa
 import pyarrow.parquet as pq
+import xml.etree.ElementTree as ET
 
 from app.models.interface.pdc_chain_interface import PdcChainHeaders, PdcChainRequest, PdcChainResponse
 from app.models.interface.pdc_interface import PdcContract, PdcEcosystem, PdcParticipant, PdcServiceOffering, PdcContractBilateral, PdcDataResource
@@ -23,22 +25,27 @@ from app.routes.workflows import import_and_execute_workflow
 from app.services.dataset_service import DatasetService
 from app.services.pdc_service import PdcService
 from typing import Annotated, List, Optional
-
-logger = logging.getLogger(__name__)
-
+from collections import defaultdict
+from app.services.user_service import UserService
 from app.services.workflow_service import WorkflowService
 from app.utils.utils import decodeDictionary
+from app.utils.auth_utils import authenticate_m2m_credentials, AuthenticatedUser
+from app.config.settings import settings
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ptx", tags=["prometheus-x"])
 
 logging.basicConfig(filename = 'app.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 dataset_service = DatasetService()
 workflow_service = WorkflowService()
+user_service = UserService()
 pdc_service = PdcService()
 
 _config_cache = {}
 _config_timestamp = {}
+
+
 
 @router.get("/{id}")
 async def get_ptx_data(id: str):
@@ -181,7 +188,14 @@ async def executeChainService(
     dataset_service.pdcChainHeaders = pdc_headers
     workflow_data = await workflow_service.get_workflow(payload.params["workflowId"] if "workflowId" in payload.params else "e492c405-300f-4bf3-967e-c3db614e18f6")
     print(type(workflow_data))
-    background_tasks.add_task(import_and_execute_workflow, workflow_data)
+    try:
+        user = await user_service.get_user_from_workflow(workflow_data)
+        logger.debug(f"Retrieved user from workflow: {getattr(user, 'id', user)}")
+    except Exception:
+        # If user service or function not available, continue without user info
+        logger.debug("UserService.get_user_from_workflow not available or failed", exc_info=True)
+        user = None
+    background_tasks.add_task(import_and_execute_workflow, workflow_data, current_user=user)
     return True
 
 @router.get("/serviceChain/data/{service_chain_id}")
@@ -204,11 +218,38 @@ async def read_input(request: Request, response: Response, headers: Annotated[Pd
     """ pdc input endpoint to handle PDC data exchange.
     This endpoint processes the input data and headers, fetches the PDC contract,
     retrieves the data provider or ecosystem information, and writes the data to a file.
+    
+    Uses M2M authentication by matching request headers against user credentials.
     """
-    try:
-        data = await request.json()
-    except : 
-        data = await request.body()
+    
+    # M2M Authentication: Get all users and check credentials against user config
+    all_users = await user_service.get_all_users()
+    authenticated_users: List[AuthenticatedUser] = await authenticate_m2m_credentials(request.headers, all_users)
+    if not authenticated_users:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No valid credentials found in headers"
+        )
+    fileFormat ="text"
+    if (request.headers.get("Content-Type") == "application/json"):
+        try:
+            data = await request.json()
+            fileFormat ="json"
+        except : 
+            form  = await request.body()
+    elif (request.headers.get("Content-Type") == "application/x-www-form-urlencoded"):
+        try:
+            #data = await request.form() 
+            #for now process this  like a raw text
+            form  = await request.body()
+            data = form.decode()
+            fileFormat ="xml"
+        except : 
+            data = await request.body()
+    else:
+        #byte with encode or raw text
+        form  = await request.body()
+        data = form.decode()
     data = decodeDictionary(data)
     #print(f"Received data: {data}")
     
@@ -216,40 +257,105 @@ async def read_input(request: Request, response: Response, headers: Annotated[Pd
     pdc_contract = pdc_service.fetch_contract(headers.x_ptx_contracturl)
     provider_name = pdc_service.get_provider_name_from_contract(pdc_contract)
     print(f"Provider name: {provider_name}")
-    os.makedirs(os.path.dirname(get_folder_path("pdc")), exist_ok=True)
-    connection = await dataset_service.find_file_connection(folder = get_folder_path("pdc"), name = provider_name)
-    payload = {"data": data, "path": "pdc"}
     
+    serialized_data = serialize_data(data, fileFormat)
+    file_ext = ".json" if fileFormat == "json" else ".xml" if fileFormat == "xml" else ".txt"
     
-    if connection.ifExist == "append" and connection.filePath and os.path.exists(connection.filePath):
-        # Append to existing file
-        complete_filepath = connection.filePath
-        print(f" before Appending to existing file: {complete_filepath}")
-        write_input_append(complete_filepath, json.dumps(data))
-        print(f"Appended data to existing file: {complete_filepath}")
-    else:
-        # Create new file or replace existing one
-        filename_prefix = f"{provider_name}_" if provider_name else ""
-        folder_path = connection.folder if connection.folder else get_folder_path("pdc")
-        complete_filepath = f"{folder_path}{filename_prefix}{str(time.time())}.json"
+    # Create datasets for each authenticated user only
+    user_datasets = []
+    
+    for auth_user_data in authenticated_users:
+        user_obj = auth_user_data['user']  # TypedDict still uses dict access
+        matched_creds = auth_user_data['matched_credentials']
+        user_id = str(user_obj.id)
         
-        # Remove old file if it exists and we're not appending
-        if connection.filePath and os.path.exists(connection.filePath):
-            try:
-                os.remove(connection.filePath)
-                print(f"Removed old file: {connection.filePath}")
-            except OSError as e:
-                print(f"Error removing old file {connection.filePath}: {e}")
-        
-        write_input(complete_filepath, json.dumps(data))
-        connection.filePath = complete_filepath
-        connection.ifExist = "replace"
-        print(f"Created new file: {complete_filepath}")
-    
-    connection.inputType = "file"
-    await dataset_service.edit_dataset(connection)
+        try:
+            
+            # Create user-specific folder in upload_dir: /upload_dir/userid/
+            user_folder = os.path.join(settings.upload_dir, user_id)
+            os.makedirs(user_folder, exist_ok=True)
+            
+            # Dataset name: provider_contract_id
+            user_dataset_name = f"{provider_name}_{pdc_contract.id}" if provider_name else str(pdc_contract.id)
+            
+            # Create file path in user's folder
+            user_filename_prefix = f"{pdc_contract.id}_"
+            user_complete_filepath = os.path.join(user_folder, f"{user_filename_prefix}{str(time.time())}{file_ext}")
+            
+            # Check for existing dataset by searching user's owned datasets
+            existing_dataset = None
+            for owned_dataset_id in user_obj.owned_datasets or []:
+                try:
+                    existing = await dataset_service.get_dataset(owned_dataset_id, user_obj)
+                    if (isinstance(existing, FileDataset) and 
+                        existing.name == user_dataset_name and 
+                        hasattr(existing, 'folder') and 
+                        os.path.normpath(existing.folder) == os.path.normpath(user_folder)):
+                        existing_dataset = existing
+                        break
+                except:
+                    continue
+            
+            if existing_dataset and existing_dataset.ifExist == "append" and existing_dataset.filePath and os.path.exists(existing_dataset.filePath):
+                # Mode append: ajouter au fichier existant
+                write_input_append(existing_dataset.filePath, serialized_data)
+                logger.info(f"Appended data to existing user dataset: {existing_dataset.filePath} for user {user_obj.username}")
+                dataset_result = existing_dataset
+            elif existing_dataset:
+                # Dataset existe mais pas en mode append: remplacer le fichier et mettre à jour
+                if existing_dataset.filePath and os.path.exists(existing_dataset.filePath):
+                    try:
+                        os.remove(existing_dataset.filePath)
+                        logger.info(f"Removed old user file: {existing_dataset.filePath}")
+                    except OSError as e:
+                        logger.error(f"Error removing old user file {existing_dataset.filePath}: {e}")
+                
+                # Mettre à jour le dataset existant
+                write_input(user_complete_filepath, serialized_data)
+                existing_dataset.filePath = user_complete_filepath
+                existing_dataset.ifExist = 'replace'
+                await dataset_service.edit_dataset(existing_dataset, user_obj)
+                dataset_result = existing_dataset
+                logger.info(f"Updated existing user dataset: {user_complete_filepath} for user {user_obj.username}")
+            else:
+                # Aucun dataset existant: en créer un nouveau
+                write_input(user_complete_filepath, serialized_data)
+                
+                # Create FileDataset with proper user ownership
+                new_dataset = FileDataset(
+                    name=user_dataset_name,
+                    type='file',
+                    folder=user_folder,
+                    filePath=user_complete_filepath,
+                    inputType='file',
+                    ifExist='replace'
+                )
+                
+                # Use add_connection for proper user association
+                await dataset_service.add_connection(new_dataset, user_obj)
+                dataset_result = new_dataset
+                logger.info(f"Created new user dataset: {user_complete_filepath} for user {user_obj.username}")
+            
+            user_datasets.append({
+                'user': user_obj.username,
+                'dataset_id': dataset_result.id,
+                'auth_method': 'm2m_credentials',
+                'credentials_count': len(matched_creds),
+                'filepath': dataset_result.filePath
+            })
+            
+        except Exception as e:
+            logger.error(f"Error creating dataset for user {user_obj.username}: {str(e)}")
+            continue
    
-    return {"data": payload, "path": "my pdc"}
+    return {
+        "data": data, 
+        "path": "user_datasets",
+        "contract_id": pdc_contract.id,
+        "provider_name": provider_name,
+        "authenticated_users": len(authenticated_users),
+        "user_datasets": user_datasets
+    }
 
 @router.get("/participants_id/{connection_id}")
 async def get_participants_id_from_connection(connection_id: str) -> List[str]:
@@ -415,6 +521,155 @@ async def get_service_Chain(connection_id: str):
 
     return result
 
+
+@router.get("/dataExchanges/{connection_id}")
+async def get_data_exchanges(connection_id: str, request: Request):
+    """
+    Retrieve successful data exchange history for a given connection
+    For each exchange with status "IMPORT_SUCCESS", fetch details of associated resources
+
+    Returns:
+        A Json object containing grouped and detailed data exchanges history
+    
+    Example JSON response:
+    {
+        "dataExchanges": [
+            {
+                "resources": [
+                    {
+                        "id": "resource-id-1",
+                        "name": "Resource Name 1",
+                        "description": "Description of Resource 1",
+                        "owner": {
+                            "id": "owner-id-1",
+                            "name": "Owner Name 1"
+                        }
+                    },
+                    ...
+                ],
+                "contract": "contract-url",
+                "providerEndpoint": "provider-endpoint-url",
+                "consumerEndpoint": "consumer-endpoint-url",
+                "executions": [
+                    {
+                        "id": "exchange-id-1",
+                        "createdAt": "2023-10-01T12:00:00Z"
+                    },
+                    ...
+                ]
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        connection = await dataset_service.get_dataset(connection_id)
+        config = get_private_configuration(connection)
+        pdc_endpoint = config.get("endpoint")
+        data_exchanges_url = f"{pdc_endpoint}dataexchanges"
+        participant_url = f"{config.get('catalogUri')}participants/"
+        
+        response = requests.get(data_exchanges_url)
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Can't retrieve data exchange history: {response.text}"
+            )
+            
+        data_exchanges_data = response.json()
+        content = data_exchanges_data.get("content", [])
+        
+        # Cache to avoid redundant requests for the same resource
+        resource_cache = {}
+        
+        # Helper function to fetch detailed resource information
+        def get_resource_details(resource_url):
+            if resource_url in resource_cache:
+                return resource_cache[resource_url]
+            
+            try:
+                resource_response = requests.get(resource_url)
+                if resource_response.status_code == 200:
+                    resource_data = PdcDataResource.model_validate(resource_response.json())
+                    owner_url =  f"{participant_url}{resource_data.producedBy}" if resource_data.producedBy else None
+                    owner_details = pdc_service.fetch_participant(owner_url) if owner_url else {}
+                    details = {
+                        "id": resource_data.id,
+                        "name": resource_data.name,
+                        "description": resource_data.description,
+                        "owner": {
+                            "id": owner_details.id,
+                            "name": owner_details.legalName 
+                         } 
+                    }
+                    resource_cache[resource_url] = details
+                    return details
+                else:
+                    print(f"Error fetching resource {resource_url}: {resource_response.status_code}")
+                    return None
+            except Exception as e:
+                print(f"Exception while fetching resource {resource_url}: {str(e)}")
+                return None
+        
+        # Group exchanges by resources, contract, and endpoint
+        grouped_exchanges = defaultdict(lambda: {"executions": []})
+        
+        for item in content:
+            if item.get("status") != "IMPORT_SUCCESS":
+                continue
+                
+            resources = item.get("resources", [])
+            contract = item.get("contract")
+            provider_endpoint = item.get("providerEndpoint")
+            consumer_endpoint = item.get("consumerEndpoint")
+            item_id = item.get("_id")
+            created_at = item.get("createdAt")
+            
+            detailed_resources = []
+            for res in resources:
+                resource_url = res.get("resource", "")
+                resource_details = get_resource_details(resource_url)
+                
+                if resource_details:
+                    detailed_resources.append(resource_details)
+            
+            # Generate a key for grouping
+            resources_ids = tuple(sorted(res["id"] for res in detailed_resources))
+            endpoint = provider_endpoint or consumer_endpoint
+            group_key = (resources_ids, contract, endpoint)
+            
+            group = grouped_exchanges[group_key]
+            if not group["executions"]:  
+                group.update({
+                    "resources": detailed_resources,  
+                    "contract": contract
+                })
+                if provider_endpoint:
+                    group["providerEndpoint"] = provider_endpoint
+                elif consumer_endpoint:
+                    group["consumerEndpoint"] = consumer_endpoint
+            
+            execution = {"id": item_id}
+            if created_at is not None:
+                execution["createdAt"] = created_at
+            group["executions"].append(execution)
+        
+        data_exchanges = []
+        for group in grouped_exchanges.values():
+            group["executions"].sort(
+                key=lambda x: x.get("createdAt") or "",
+                reverse=True
+            )
+            data_exchanges.append(group)
+            
+        return {"dataExchanges": data_exchanges}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    
 @router.post("/trigger-data-exchange/{connection_id}")
 async def trigger_data_exchange(connection_id: str, request: Request):
     try:
@@ -629,11 +884,6 @@ def write_input(file: str, data: str):
     with open(file, 'w') as f:
         f.write(data)
 
-def get_folder_path(folder: str):
-    """ build absolute path of a folder.
-    """
-    dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
-    return str(dir_path.parent.absolute()) + "/ptx/"+folder+"/"    
 
 def get_private_configuration(connection):
     """Get private configuration with caching"""
@@ -667,3 +917,22 @@ def get_serviceoffering_by_id(id: str, connection):
     url = conf["catalogUri"] + "catalog/serviceofferings/" + id
     return pdc_service.fetch_service_offering(url)
 
+def serialize_data(data, fileFormat):
+    if fileFormat == "json":
+        return json.dumps(data, indent=2)
+    elif fileFormat == "xml":
+        # if XML string return or convert
+        if isinstance(data, str):
+            return data
+        elif isinstance(data, dict):
+            # Simple dict to XML conversion
+            root = ET.Element("root")
+            for k, v in data.items():
+                child = ET.SubElement(root, k)
+                child.text = str(v)
+            return ET.tostring(root, encoding="unicode")
+        else:
+            return str(data)
+    else:
+        # raw text
+        return data.decode() if isinstance(data, bytes) else str(data)
