@@ -71,7 +71,7 @@ describe('MergeTransform', () => {
       outputs: {
         output1: { socket: {} }
       },
-      data: { 
+      data: {
         output: ['someData']
       },
       dataOutput: new Map([['output1', ['data']]])
@@ -99,7 +99,7 @@ describe('MergeTransform', () => {
       outputs: {
         output1: { socket: {} }
       },
-      data: { 
+      data: {
         output: ['someData']
       },
       dataOutput: new Map([['output1', ['data']]])
@@ -122,10 +122,10 @@ describe('MergeTransform', () => {
       data: {
         output: ['someData']
       },
-      dataOutput: new Map([['output1', { 
+      dataOutput: new Map([['output1', {
         type: 'parquet',
         name: 'Test Dataset',
-        data: [{ field1: 'value1' }], 
+        data: [{ field1: 'value1' }],
         schema: mockSchema,
         nodeSchema: mockSchema,
         dataExample: { field1: ['value1'] }

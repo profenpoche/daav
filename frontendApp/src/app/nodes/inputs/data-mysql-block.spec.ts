@@ -24,32 +24,32 @@ describe('DataMysqlBlock', () => {
       getDatasets: jasmine.createSpy('getDatasets'),
       getContentDataset: jasmine.createSpy('getContentDataset')
     };
-    
+
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
         { provide: DatasetService, useValue: mockDatasetService }
       ]
     });
-    
+
     injector = TestBed.inject(Injector);
-    
+
     const container = document.createElement('div');
     area = new AreaPlugin(container);
     node = { data: {} } as Node;
     datasetService = jasmine.createSpyObj('DatasetService', ['datasets', 'getContentDataset']);
-    
+
     const mockWorkflowEditor = {
       injector,
       getConnections: jasmine.createSpy('getConnections').and.returnValue([])
     };
-    
+
     Object.defineProperty(area, 'parent', {
       value: mockWorkflowEditor,
       writable: true,
       configurable: true
     });
-    
+
     block = new DataMysqlBlock('Test Block', area, node);
     block['datasetService'] = datasetService;
   });
@@ -61,10 +61,10 @@ describe('DataMysqlBlock', () => {
   it('should handle dataSourceChange', async () => {
     const event = { value: 'test-dataset-id', source: { writeValue: jasmine.createSpy() } } as any;
     const dataset = { id: 'test-dataset-id', database: 'test-db', table: 'test-table' } as any;
-    
+
     // Initialize selectControl
     block['selectControl'] = { value: 'test-dataset-id', oldValue: null } as any;
-    
+
     spyOn(block, 'cleanOutput');
     spyOn(block, 'removeControlDatabase');
     spyOn(block, 'removeControlTable');
@@ -87,10 +87,10 @@ describe('DataMysqlBlock', () => {
   it('should handle dataBaseChange', () => {
     const event = { value: 'test-db' } as MatSelectChange;
     const dataset = { id: 'test-dataset-id' } as any;
-    
+
     // Initialize selectControl
     block['selectControl'] = { value: 'test-dataset-id' } as any;
-    
+
     spyOn(block, 'removeControlTable');
     spyOn(block, 'cleanOutput');
     spyOn(block, 'showLoader');
@@ -109,11 +109,11 @@ describe('DataMysqlBlock', () => {
   it('should handle tableChange', () => {
     const event = { value: 'test-table' } as MatSelectChange;
     const dataset = { id: 'test-dataset-id', database: 'test-db' } as any;
-    
+
     // Initialize selectControl and selectControlDatabase
     block['selectControl'] = { value: 'test-dataset-id' } as any;
     block['selectControlDatabase'] = { value: 'test-db' } as any;
-    
+
     spyOn(block, 'cleanOutput');
     spyOn(block, 'showLoader');
     spyOn(block, 'createOutput');

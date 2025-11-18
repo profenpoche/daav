@@ -10,7 +10,7 @@ describe('LoadingComponent', () => {
   beforeEach(waitForAsync(() => {
     const mockLoadingService = jasmine.createSpyObj('LoadingService', ['show', 'hide', 'loading']);
     mockLoadingService.loading.and.returnValue(false);
-    
+
     TestBed.configureTestingModule({
       imports: [IonicModule.forRoot(), LoadingComponent],
       providers: [

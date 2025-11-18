@@ -14,7 +14,7 @@ describe('OutputDataBlock', () => {
   beforeEach(() => {
     const container = document.createElement('div');
     area = new AreaPlugin<Schemes, never>(container);
-    
+
     // Create mock injector
     mockInjector = jasmine.createSpyObj('Injector', ['get']);
     (mockInjector.get as jasmine.Spy).and.callFake((token: any) => {
@@ -26,12 +26,12 @@ describe('OutputDataBlock', () => {
       }
       return null;
     });
-    
+
     // Create mock workflow editor with injector
     mockWorkflowEditor = {
       injector: mockInjector
     };
-    
+
     // IMPORTANT: Set parent BEFORE creating OutputDataBlock instance
     Object.defineProperty(area, 'parent', {
       value: mockWorkflowEditor,

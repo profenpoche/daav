@@ -15,7 +15,7 @@ describe('MongoOutput', () => {
     const container = document.createElement('div');
     area = new AreaPlugin<Schemes, never>(container);
     area.update = jasmine.createSpy('update');
-    
+
     mockInjector = jasmine.createSpyObj('Injector', ['get']);
     (mockInjector.get as jasmine.Spy).and.callFake((token: any) => {
       if (token === DatasetService) {
@@ -26,7 +26,7 @@ describe('MongoOutput', () => {
       }
       return null;
     });
-    
+
     mockWorkflowEditor = { injector: mockInjector };
     Object.defineProperty(area, 'parent', {
       value: mockWorkflowEditor,

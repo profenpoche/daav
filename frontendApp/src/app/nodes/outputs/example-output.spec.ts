@@ -18,19 +18,19 @@ describe('ExampleOutput', () => {
       datasets: signal([]),
       getDatasets: jasmine.createSpy('getDatasets')
     };
-    
+
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
         { provide: DatasetService, useValue: mockDatasetService }
       ]
     });
-    
+
     injector = TestBed.inject(Injector);
-    
+
     const container = document.createElement('div');
     area = new AreaPlugin<Schemes, never>(container);
-    
+
     Object.defineProperty(area, 'parent', {
       value: { injector },
       writable: true,

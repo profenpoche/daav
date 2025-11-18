@@ -42,7 +42,7 @@ describe('WorkflowEditor', () => {
   describe('Static Methods (No DOM needed)', () => {
     it('should create socketFactory for SimpleFieldSocket', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const socket = workflowEditor['socketFactory']('SimpleFieldSocket');
       expect(socket).toBeDefined();
       expect(socket.name).toBe('SimpleFieldSocket');
@@ -50,7 +50,7 @@ describe('WorkflowEditor', () => {
 
     it('should create socketFactory for LrsObjectSocket', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const socket = workflowEditor['socketFactory']('LrsObjectSocket');
       expect(socket).toBeDefined();
       expect(socket.name).toBe('LrsObjectSocket');
@@ -58,7 +58,7 @@ describe('WorkflowEditor', () => {
 
     it('should create socketFactory for DeepObjectSocket', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const socket = workflowEditor['socketFactory']('DeepObjectSocket');
       expect(socket).toBeDefined();
       expect(socket.name).toBe('DeepObjectSocket');
@@ -66,7 +66,7 @@ describe('WorkflowEditor', () => {
 
     it('should create socketFactory for FlatObjectSocket', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const socket = workflowEditor['socketFactory']('FlatObjectSocket');
       expect(socket).toBeDefined();
       expect(socket.name).toBe('FlatObjectSocket');
@@ -74,7 +74,7 @@ describe('WorkflowEditor', () => {
 
     it('should create socketFactory for AllSocket', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const socket = workflowEditor['socketFactory']('AllSocket');
       expect(socket).toBeDefined();
       expect(socket.name).toBe('AllSocket');
@@ -82,7 +82,7 @@ describe('WorkflowEditor', () => {
 
     it('should create generic socket for unknown types', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const socket = workflowEditor['socketFactory']('CustomSocket');
       expect(socket).toBeDefined();
       expect(socket).toBeInstanceOf(ClassicPreset.Socket);
@@ -90,7 +90,7 @@ describe('WorkflowEditor', () => {
 
     it('should serialize input port', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const socket = new ClassicPreset.Socket('TestSocket');
       const input = new ClassicPreset.Input(socket, 'Test Input');
       input.id = 'input-1';
@@ -106,7 +106,7 @@ describe('WorkflowEditor', () => {
 
     it('should serialize output port', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const socket = new ClassicPreset.Socket('TestSocket');
       const output = new ClassicPreset.Output(socket, 'Test Output');
       output.id = 'output-1';
@@ -122,7 +122,7 @@ describe('WorkflowEditor', () => {
 
     it('should serialize InputControl', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const control = new ClassicPreset.InputControl('text', {
         initial: 'test value',
         readonly: false
@@ -142,7 +142,7 @@ describe('WorkflowEditor', () => {
 
     it('should return null for unknown control types', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const customControl = {} as any;
 
       const serialized = workflowEditor['serializeControl'](customControl);
@@ -154,26 +154,26 @@ describe('WorkflowEditor', () => {
   describe('Constructor and Basic Properties', () => {
     it('should create an instance with container', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       expect(workflowEditor).toBeTruthy();
       expect(workflowEditor.injector).toBe(injector);
     });
 
     it('should initialize with undefined id by default', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       expect(workflowEditor.id).toBeUndefined();
     });
 
     it('should initialize with undefined name by default', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       expect(workflowEditor.name).toBeUndefined();
     });
 
     it('should initialize with undefined project by default', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       expect(workflowEditor.project).toBeUndefined();
     });
   });
@@ -181,7 +181,7 @@ describe('WorkflowEditor', () => {
   describe('Project Management', () => {
     it('should export empty project schema', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       workflowEditor.id = 'project-1';
       workflowEditor.name = 'Test Project';
       workflowEditor.revision = 'v1.0';
@@ -198,7 +198,7 @@ describe('WorkflowEditor', () => {
 
     it('should include dataConnectors array in export', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const exported = workflowEditor.exportProject();
 
       expect(Array.isArray(exported.dataConnectors)).toBe(true);
@@ -206,7 +206,7 @@ describe('WorkflowEditor', () => {
 
     it('should call exportProject and store result on saveProject', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       spyOn(workflowEditor, 'exportProject').and.returnValue({
         id: 'test-id',
         name: 'Test Project',
@@ -224,7 +224,7 @@ describe('WorkflowEditor', () => {
 
     it('should call WorkflowService.executeNodeJson without nodeId', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const mockProject: Project = {
         id: 'test-id',
         name: 'Test',
@@ -243,7 +243,7 @@ describe('WorkflowEditor', () => {
 
     it('should call WorkflowService.executeNodeJson with nodeId', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const mockProject: Project = {
         id: 'test-id',
         name: 'Test',
@@ -262,7 +262,7 @@ describe('WorkflowEditor', () => {
 
     it('should call updateProjectStatus with response', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const mockProject: Project = {
         id: 'test-id',
         name: 'Test',
@@ -282,7 +282,7 @@ describe('WorkflowEditor', () => {
 
     it('should handle empty project updateProjectStatus gracefully', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const emptyProject: Project = {
         id: 'test-id',
         name: 'Test',
@@ -300,11 +300,11 @@ describe('WorkflowEditor', () => {
     // which attempts to create Angular components after TestBed injector is destroyed.
     // This causes NG0205 errors. These tests would require full Angular module setup
     // with all node components (InputNode, OutputNode, TransformNode) and their dependencies.
-    
+
     xit('should build context menu items from registered blocks', () => {
       const container = document.createElement('div');
       const workflowEditor = new WorkflowEditor(container, injector);
-      
+
       const items = workflowEditor['buildContextMenu']();
       expect(items).toBeDefined();
       expect(Array.isArray(items)).toBe(true);
@@ -313,7 +313,7 @@ describe('WorkflowEditor', () => {
     xit('should group nodes by type', () => {
       const container = document.createElement('div');
       const workflowEditor = new WorkflowEditor(container, injector);
-      
+
       const items = workflowEditor['buildContextMenu']();
       expect(items.length).toBeGreaterThan(0);
     });
@@ -323,7 +323,7 @@ describe('WorkflowEditor', () => {
   describe('Additional Method Coverage', () => {
     it('should handle exportProject with complex project state', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       workflowEditor.id = 'complex-project';
       workflowEditor.name = 'Complex Test Project';
       workflowEditor.revision = 'v2.5';
@@ -339,21 +339,21 @@ describe('WorkflowEditor', () => {
 
     it('should maintain project reference after saveProject', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       workflowEditor.id = 'save-test';
       workflowEditor.name = 'Save Test';
-      
+
       workflowEditor.saveProject();
-      
+
       expect(workflowEditor.project).not.toBeNull();
       expect(workflowEditor.project?.id).toBe('save-test');
     });
 
     it('should handle multiple socket types in socketFactory', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const types = ['SimpleFieldSocket', 'LrsObjectSocket', 'DeepObjectSocket', 'FlatObjectSocket', 'AllSocket'];
-      
+
       types.forEach(type => {
         const socket = workflowEditor['socketFactory'](type);
         expect(socket).toBeDefined();
@@ -363,13 +363,13 @@ describe('WorkflowEditor', () => {
 
     it('should serialize multiple ports correctly', () => {
       const workflowEditor = createWorkflowEditor();
-      
+
       const socket1 = new ClassicPreset.Socket('Socket1');
       const socket2 = new ClassicPreset.Socket('Socket2');
-      
+
       const input = new ClassicPreset.Input(socket1, 'Input Port');
       input.id = 'in-1';
-      
+
       const output = new ClassicPreset.Output(socket2, 'Output Port');
       output.id = 'out-1';
 
@@ -386,21 +386,21 @@ describe('WorkflowEditor', () => {
     xit('should have nodeEditor property after construction', () => {
       const container = document.createElement('div');
       const workflowEditor = new WorkflowEditor(container, injector);
-      
+
       expect(workflowEditor.nodeEditor).toBeDefined();
     });
 
     xit('should have area property after construction', () => {
       const container = document.createElement('div');
       const workflowEditor = new WorkflowEditor(container, injector);
-      
+
       expect(workflowEditor.area).toBeDefined();
     });
 
     xit('should have connection property after construction', () => {
       const container = document.createElement('div');
       const workflowEditor = new WorkflowEditor(container, injector);
-      
+
       expect(workflowEditor.connection).toBeDefined();
     });
   });

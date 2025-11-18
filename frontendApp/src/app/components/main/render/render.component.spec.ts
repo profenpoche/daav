@@ -23,7 +23,7 @@ describe('RenderComponent', () => {
 
     fixture = TestBed.createComponent(RenderComponent);
     component = fixture.componentInstance;
-    component.dataset = { 
+    component.dataset = {
       name: 'Test Dataset',
       id: 'test-id',
       type: 'test-type',

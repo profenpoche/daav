@@ -10,7 +10,7 @@ describe('TransformationComponent', () => {
 
   beforeEach(waitForAsync(() => {
     const loadingSpy = jasmine.createSpyObj('LoadingService', ['present', 'dismiss']);
-    
+
     TestBed.configureTestingModule({
       declarations: [ TransformationComponent ],
       imports: [IonicModule.forRoot(), HttpClientTestingModule],
