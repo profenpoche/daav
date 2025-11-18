@@ -30,7 +30,7 @@ describe('MergeTransform', () => {
 
   it('should initialize with default values when no node is provided', () => {
     const instance = new MergeTransform('Test Label', area);
-    expect(instance.width).toBe(180);
+    expect(instance.width).toBe(350); // MergeTransform has width 350
     expect(instance.height).toBe(192);
     expect(instance.dataMapperControl).toBeInstanceOf(DataMapperControl);
     expect(instance.dataMapperControl.mappings).toEqual([]);
@@ -59,9 +59,23 @@ describe('MergeTransform', () => {
     const instance = new MergeTransform('Test Label', area);
     const connection = {
       source: 'sourceNode',
+      sourceOutput: 'output1',
       target: instance.id,
       targetInput: 'datasource'
     } as any;
+
+    // Mock getNode to return a node with proper data structure
+    (area.parent.getNode as jasmine.Spy).and.returnValue({
+      label: 'Source Node',
+      id: 'sourceNode',
+      outputs: {
+        output1: { socket: {} }
+      },
+      data: { 
+        output: ['someData']
+      },
+      dataOutput: new Map([['output1', ['data']]])
+    });
 
     instance['onConnectionChange'](connection, 'connectioncreated');
     expect(Object.keys(instance.inputs)).toContain('datasource_1');
@@ -78,9 +92,17 @@ describe('MergeTransform', () => {
       targetInput: 'datasource'
     };
 
+    // Mock getNode with complete data
     (area.parent.getNode as jasmine.Spy).and.returnValue({
       label: 'Source Node',
-      data: { output: ['someData'] }
+      id: 'sourceNode',
+      outputs: {
+        output1: { socket: {} }
+      },
+      data: { 
+        output: ['someData']
+      },
+      dataOutput: new Map([['output1', ['data']]])
     });
 
     instance['onConnectionChange'](connection, 'connectioncreated');
@@ -91,15 +113,24 @@ describe('MergeTransform', () => {
 
   it('should build dataset on connection created', () => {
     const instance = new MergeTransform('Test Label', area);
+    const mockSchema = {
+      fields: [{ name: 'field1', type: { toString: () => 'string' } }]
+    };
     const mockSourceNode = {
       label: 'Source Node',
       id: 'sourceNode',
       data: {
-        output: ['someData'],
-        schema: {
-          get: () => ({ fields: [{ name: 'field1', type: 'string' }] })
-        }
-      }
+        output: ['someData']
+      },
+      dataOutput: new Map([['output1', { 
+        type: 'parquet',
+        name: 'Test Dataset',
+        data: [{ field1: 'value1' }], 
+        schema: mockSchema,
+        nodeSchema: mockSchema,
+        dataExample: { field1: ['value1'] }
+      }]]),
+      schema: new Map([['output1', mockSchema]])
     };
 
     const mockConnection = {

@@ -1,27 +1,29 @@
 import { NodeEditor } from 'rete';
 import { WorkflowNodeEditor } from './workflow-node-editor';
 import { Injector } from "@angular/core";
+import { WorkflowEditor } from './workflow-editor';
 
 describe('WorkflowNodeEditor', () => {
   let injector: Injector;
+  let workflowEditor: WorkflowEditor;
 
   beforeEach(() => {
     injector = jasmine.createSpyObj('Injector', ['get']);
+    workflowEditor = jasmine.createSpyObj('WorkflowEditor', ['emit']);
   });
 
   it('should create an instance', () => {
-    const editor = new WorkflowNodeEditor(injector);
+    const editor = new WorkflowNodeEditor(injector, workflowEditor);
     expect(editor).toBeTruthy();
   });
 
   it('should have an injector', () => {
-    const editor = new WorkflowNodeEditor(injector);
+    const editor = new WorkflowNodeEditor(injector, workflowEditor);
     expect(editor.injector).toBe(injector);
   });
 
-  it('should call super constructor', () => {
-    spyOn(NodeEditor.prototype, 'constructor' as any);
-    const editor = new WorkflowNodeEditor(injector);
-    expect(NodeEditor.prototype.constructor).toHaveBeenCalled();
+  it('should have a core', () => {
+    const editor = new WorkflowNodeEditor(injector, workflowEditor);
+    expect(editor.core).toBe(workflowEditor);
   });
 });

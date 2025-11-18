@@ -15,6 +15,8 @@ describe('FlatSocketComponent', () => {
 
     fixture = TestBed.createComponent(FlatSocketComponent);
     component = fixture.componentInstance;
+    component.data = { name: 'test-socket' };
+    component.rendered = jasmine.createSpy('rendered');
     fixture.detectChanges();
   }));
 

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { IonicModule } from '@ionic/angular';
-
+import { ClassicPreset } from 'rete';
 import { InputNodeComponent } from './nodes.component';
 
 describe('NodesComponent', () => {
@@ -15,6 +15,10 @@ describe('NodesComponent', () => {
 
     fixture = TestBed.createComponent(InputNodeComponent);
     component = fixture.componentInstance;
+    component.data = new ClassicPreset.Node('test');
+    component.data.selected = false;
+    component.emit = jasmine.createSpy('emit');
+    component.rendered = jasmine.createSpy('rendered');
     fixture.detectChanges();
   }));
 

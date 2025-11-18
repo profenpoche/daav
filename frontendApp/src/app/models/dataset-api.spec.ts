@@ -30,12 +30,6 @@ describe('DatasetApi', () => {
       folder: '',
       inputType: '',
       filePath: '',
-      fileSize: '',
-      fileType: '',
-      modifTime: '',
-      accessTime: '',
-      columnCount: '',
-      rowCount: '',
       csvHeader: '',
       csvDelimiter: '',
       file: undefined,
@@ -47,8 +41,19 @@ describe('DatasetApi', () => {
       password: '',
       table: '',
       index: '',
-      username: '',
-      key: ''
+      key: '',
+      service_key: '',
+      secret_key: '',
+      token: '',
+      refreshToken: '',
+      metadata: {
+        fileSize: '',
+        fileType: '',
+        modifTime: '',
+        accessTime: '',
+        columnCount: '',
+        rowCount: ''
+      }
     };
     const datasetApi = new DatasetApi(dataset);
     expect(datasetApi.url).toBe(dataset.url);
