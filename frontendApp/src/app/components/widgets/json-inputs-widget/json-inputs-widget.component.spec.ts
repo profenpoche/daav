@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { IonicModule } from '@ionic/angular';
-
-import { JsonInputsWidgetComponent } from './json-inputs-widget.component';
+import { JsonInputsWidgetComponent, JsonInputsControl } from './json-inputs-widget.component';
 
 describe('JsonInputsWidgetComponent', () => {
   let component: JsonInputsWidgetComponent;
@@ -15,6 +14,7 @@ describe('JsonInputsWidgetComponent', () => {
 
     fixture = TestBed.createComponent(JsonInputsWidgetComponent);
     component = fixture.componentInstance;
+    component.data = new JsonInputsControl([]);
     fixture.detectChanges();
   }));
 

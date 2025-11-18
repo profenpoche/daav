@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { IonicModule } from '@ionic/angular';
-
-import { ButtonWidgetComponent } from './button-widget.component';
+import { ButtonWidgetComponent, ButtonControl } from '../button-widget/button-widget.component';
 
 describe('ButtonComponent', () => {
   let component: ButtonWidgetComponent;
@@ -15,6 +14,7 @@ describe('ButtonComponent', () => {
 
     fixture = TestBed.createComponent(ButtonWidgetComponent);
     component = fixture.componentInstance;
+    component.data = new ButtonControl(() => {}, 'Test Button');
     fixture.detectChanges();
   }));
 

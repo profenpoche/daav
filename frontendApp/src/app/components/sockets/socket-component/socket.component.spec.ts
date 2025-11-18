@@ -15,6 +15,8 @@ describe('SocketComponent', () => {
 
     fixture = TestBed.createComponent(SocketComponent);
     component = fixture.componentInstance;
+    component.data = { name: 'test-socket' };
+    component.rendered = jasmine.createSpy('rendered');
     fixture.detectChanges();
   }));
 

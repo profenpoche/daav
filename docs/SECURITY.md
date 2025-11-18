@@ -57,28 +57,19 @@ content = FileAccessController.get_restricted_file_content(file_path, max_size)
 ### Security Middleware (`SecurityMiddleware`)
 
 **Integration in main.py:**
-```python
-from app.middleware.security import SecurityMiddleware
 
-# Add to your FastAPI app
-app.add_middleware(
-    SecurityMiddleware,
-    rate_limit=100,  # Max requests per time window
-    time_window=60   # Time window in seconds
-)
+**Configuration for Users:**
+The rate limiting and time window for security are set using environment variables. You can adjust these values in your deployment settings to control how many requests are allowed and over what period.
+
+```bash
+# Maximum requests allowed per time window
+SECURITY_RATE_LIMIT=100
+
+# Time window in seconds
+SECURITY_TIME_WINDOW=60
 ```
 
-**Configuration examples:**
-```python
-# Development (permissive)
-app.add_middleware(SecurityMiddleware, rate_limit=1000, time_window=60)
-
-# Production (balanced)
-app.add_middleware(SecurityMiddleware, rate_limit=100, time_window=60)
-
-# High security (strict)
-app.add_middleware(SecurityMiddleware, rate_limit=50, time_window=60)
-```
+These variables should be set in your environment or `.env` file before starting the backend. The application will automatically use these values to configure the security middleware.
 
 **Features:**
 - ✅ Rate limiting (configurable req/min per IP)
@@ -92,7 +83,6 @@ app.add_middleware(SecurityMiddleware, rate_limit=50, time_window=60)
 **What it blocks:**
 - Path traversal: `../../../etc/passwd`
 - Rate limits: >100 requests/minute from same IP
-- Large uploads: >50MB requests
 - Suspicious headers: Headers containing attack patterns
 - System paths: `/etc/`, `/proc/`, `C:\Windows\`
 
@@ -130,8 +120,6 @@ app.add_middleware(SecurityMiddleware, rate_limit=50, time_window=60)
 
 ### Environment Variables
 ```bash
-# PDC Token (required for PDC authentication)
-PDC_TOKEN=your_secure_token_here
 
 # Upload directory (optional, default: uploads)
 UPLOAD_DIR=uploads
@@ -144,20 +132,6 @@ MAX_FILE_SIZE=100MB
 # You can add a sub directory on this list to avoid this exclusion to give access to subpath
 DIRECTORY_WHITE_LIST=/opt/uploads,/opt/static
 ```
-
-### Security Configuration
-```python
-# app/config/settings.py (existing configurations)
-class Settings(BaseSettings):
-    max_file_size: Union[int, str] = 100 * 1024 * 1024  # 100MB
-    upload_dir: str = "uploads"
-
-# app/config/security.py (security-specific configurations)
-class SecurityConfig:
-    ALLOWED_FILE_EXTENSIONS = {'.csv', '.json', '.parquet', ...}
-    DANGEROUS_PATH_PATTERNS = [r'\.\./', r'\.\.\\', ...]
-```
-
 ## 🔍 Monitoring and Logs
 
 ### Security Logs
@@ -220,25 +194,3 @@ location ~ \.(env|ini|conf)$ {
     deny all;
 }
 ```
-
-## 🔄 Maintenance
-
-### Updating Rules
-Security rules can be updated in:
-- `app/config/security.py` - General configuration
-- `app/utils/security.py` - Validation logic
-- `app/middleware/security.py` - Monitoring middleware
-
-### Regular Audit
-1. Check security logs weekly
-2. Update allowed extensions list if necessary
-3. Adjust rate limiting according to usage
-4. Test regularly with pen-test tools
-
-## 📞 Security Contact
-
-In case of vulnerability discovery:
-1. **DO NOT** create public issue
-2. Contact security team directly
-3. Provide detailed PoC
-4. Wait for fix before publication

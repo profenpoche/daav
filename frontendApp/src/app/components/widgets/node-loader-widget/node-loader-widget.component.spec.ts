@@ -15,6 +15,7 @@ describe('NodeLoaderWidgetComponent', () => {
 
     fixture = TestBed.createComponent(NodeLoaderWidgetComponent);
     component = fixture.componentInstance;
+    component.data = { id: 'test-loader', loading: false } as any; // Mock input data
     fixture.detectChanges();
   }));
 
