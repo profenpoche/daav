@@ -130,15 +130,85 @@ UPLOAD_DIR=uploads
 LOG_LEVEL=INFO
 ```
 
-## 🧪 Testing
+## 🧪 Unit Testing
+
+### Backend Tests
+
+The backend includes comprehensive unit tests for security, data processing, and API endpoints.
+
+**Run all tests:**
+```bash
+cd backendApi
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pytest
+```
+
+**Run tests with coverage:**
+```bash
+pytest --cov=app --cov-report=html
+```
+
+**Run specific test files:**
+```bash
+# Security tests
+pytest tests/security/test_path_security.py -v
+
+# API tests
+pytest tests/test_api.py -v
+```
+
+**Run tests by category:**
+```bash
+# Run only unit tests
+pytest -m unit
+
+# Run only integration tests
+pytest -m integration
+```
+
+### Test Coverage
+
+The backend test suite includes comprehensive coverage of all critical functionality:
+
+#### 🔒 Security Tests
+- **`test_path_security.py`**: Path traversal protection, dangerous pattern detection, Unix/Windows path attack prevention, null byte injection protection
+- **`test_security_middleware.py`**: Rate limiting enforcement, request validation, suspicious pattern detection, IP blocking
+
+#### 🔧 Service Tests
+- **`test_user_service.py`**: User CRUD operations, permission management, resource ownership, password changes, duplicate username/email validation, admin enforcement, dataset/workflow sharing
+- **`test_auth_service.py`**: User authentication, JWT token management (access/refresh), password reset flow, admin verification, inactive account handling
+- **`test_workflow_service.py`**: Workflow CRUD operations, workflow validation, timestamp management, ownership checks, database error handling
+- **`test_dataset_service.py`**: Dataset operations (File, MySQL, PTX), PDC chain context management, file format support (CSV, JSON, Parquet), pagination, user isolation
+- **`test_pdc_service.py`**: PDC API integration, contract/ecosystem/participant fetching, service offering management, HTTP error handling, timeout/connection errors
+- **`test_email_service.py`**: Email sending (plain text/HTML), password reset emails, SMTP configuration, authentication errors, multipart message structure
+- **`test_migration_service.py`**: Config migration from INI files, dataset/workflow migration, validation errors, backup creation, mixed results handling
+
+#### 🔄 Node Transform Tests
+- **`test_filter_transform.py`**: DataFrame filtering with AND/OR conditions, rule validation, Parquet support
+- **`test_merge_transform.py`**: DataFrame merging from multiple sources, column mapping, Parquet file merging, data alignment
+- **`test_flatten_transform.py`**: JSON flattening (nested objects and arrays), hierarchical data transformation, column naming conventions
+
+#### ⚙️ Core Tests
+- **`test_workflow.py`**: Workflow execution engine, node execution order, workflow validation
+- **`test_execution_context.py`**: Execution context isolation, user/workflow context management, async context propagation, context cleanup
+- **`test_node.py`**: Base node execution, input/output handling, error states, validation
+
+#### 🛠️ Utility Tests
+- **`test_utils.py`**: File size conversion, folder operations, pandas schema generation, data slicing, base64 decoding, file type detection, DataFrame filtering with DuckDB, route access verification
+
+### Frontend Tests
 
 ```bash
-# Backend tests
-cd backendApi && pytest
-
-# Frontend tests
-cd frontendApp && npm test
+cd frontendApp
+npm test
 ```
+
+**Run with coverage:**
+```bash
+npm test -- --code-coverage
+```
+### Test Coverage
+Work in progress
 
 ## 📖 Documentation
 

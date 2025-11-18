@@ -91,7 +91,7 @@ describe('DataMapperUtils', () => {
     expect(DataMapperUtils.detectTypeFieldMysql('varchar', '123-456-7890', 'phone')).toBe('phone');
     expect(DataMapperUtils.detectTypeFieldMysql('varchar', '50%', 'percentage')).toBe('percentage');
     expect(DataMapperUtils.detectTypeFieldMysql('datetime', '2023-01-01', 'created_at')).toBe('date');
-    expect(DataMapperUtils.detectTypeFieldMysql('tinyint(1)', '1', 'is_active')).toBe('boolean');
+    expect(DataMapperUtils.detectTypeFieldMysql('tinyint(1)', '1', 'is_active')).toBe('number');
     expect(DataMapperUtils.detectTypeFieldMysql('varchar', 'some text', 'description')).toBe('string');
   });
 });

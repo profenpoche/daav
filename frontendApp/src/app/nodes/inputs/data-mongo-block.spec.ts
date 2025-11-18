@@ -1,15 +1,44 @@
 import { AreaPlugin } from 'rete-area-plugin';
 import { DataMongoBlock } from './data-mongo-block';
 import { Schemes } from 'src/app/core/workflow-editor';
+import { Injector } from '@angular/core';
+import { DatasetService } from 'src/app/services/dataset.service';
+import { HttpClient } from '@angular/common/http';
+import { TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 
 describe('DataMongoBlock', () => {
-  it('should create an instance', () => {
-    let area: AreaPlugin<any, any>;
+  let area: AreaPlugin<any, any>;
+  let injector: Injector;
+  let mockDatasetService: any;
 
-    beforeEach(() => {
-      const container = document.createElement('div');
-      area = new AreaPlugin<Schemes, never>(container);
+  beforeEach(() => {
+    mockDatasetService = {
+      datasets: signal([]),
+      getDatasets: jasmine.createSpy('getDatasets')
+    };
+
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [
+        { provide: DatasetService, useValue: mockDatasetService }
+      ]
     });
+
+    injector = TestBed.inject(Injector);
+
+    const container = document.createElement('div');
+    area = new AreaPlugin<Schemes, never>(container);
+
+    Object.defineProperty(area, 'parent', {
+      value: { injector },
+      writable: true,
+      configurable: true
+    });
+  });
+
+  it('should create an instance', () => {
     expect(new DataMongoBlock('label',area)).toBeTruthy();
   });
 });

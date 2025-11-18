@@ -1,7 +1,11 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { IonicModule } from '@ionic/angular';
-
-import { InputAutoCompleteWidgetComponent } from './input-auto-complete-widget.component';
+import { FormsModule } from '@angular/forms';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { InputAutoCompleteWidgetComponent, InputAutoCompleteControl } from './input-auto-complete-widget.component';
 
 describe('InputAutoCompleteWidgetComponent', () => {
   let component: InputAutoCompleteWidgetComponent;
@@ -10,11 +14,12 @@ describe('InputAutoCompleteWidgetComponent', () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [ InputAutoCompleteWidgetComponent ],
-      imports: [IonicModule.forRoot()]
+      imports: [IonicModule.forRoot(), FormsModule, MatAutocompleteModule, MatFormFieldModule, MatInputModule, BrowserAnimationsModule]
     }).compileComponents();
 
     fixture = TestBed.createComponent(InputAutoCompleteWidgetComponent);
     component = fixture.componentInstance;
+    component.data = new InputAutoCompleteControl({ value: 'test', list: ['test1', 'test2'], type: 'text' });
     fixture.detectChanges();
   }));
 

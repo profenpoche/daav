@@ -170,6 +170,15 @@ async def executeChainService(
     x_ptx_target_id: Annotated[str | None, Header(alias="x-ptx-target-id")] = None,
     Authorization: Annotated[str, Header()] = None,
 ):  
+
+    all_users = await user_service.get_all_users()
+    authenticated_users: List[AuthenticatedUser] = await authenticate_m2m_credentials(request.headers, all_users)
+    if not authenticated_users:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No valid credentials found in headers"
+        )
+
     requestjson = await request.json()
     service_chain_id = re.search(r"@supervisor:([a-f0-9]{24})", x_ptx_service_chain_id).group(1)
     pdc_service.store_servicechain_data(
@@ -186,16 +195,23 @@ async def executeChainService(
     dataset_service.pdcChainData = payload.data
     print(requestjson)
     dataset_service.pdcChainHeaders = pdc_headers
-    workflow_data = await workflow_service.get_workflow(payload.params["workflowId"] if "workflowId" in payload.params else "e492c405-300f-4bf3-967e-c3db614e18f6")
+    workflow_id = payload.params["workflowId"] if "workflowId" in payload.params else "e492c405-300f-4bf3-967e-c3db614e18f6"
+    workflow_data = await workflow_service.get_workflow(workflow_id)
     print(type(workflow_data))
-    try:
-        user = await user_service.get_user_from_workflow(workflow_data)
-        logger.debug(f"Retrieved user from workflow: {getattr(user, 'id', user)}")
-    except Exception:
-        # If user service or function not available, continue without user info
-        logger.debug("UserService.get_user_from_workflow not available or failed", exc_info=True)
-        user = None
-    background_tasks.add_task(import_and_execute_workflow, workflow_data, current_user=user)
+    
+    # Only execute workflow for users who possess (own or have access to) the workflow
+    executed_users = []
+    for auth_user_data in authenticated_users:
+        user_obj = auth_user_data['user']
+        # Check if user owns or has access to the workflow
+        if hasattr(user_obj, 'owned_workflows') and workflow_id in getattr(user_obj, 'owned_workflows', []):
+            background_tasks.add_task(import_and_execute_workflow, workflow_data, current_user=user_obj)
+            executed_users.append(user_obj.username)
+        elif hasattr(user_obj, 'accessible_workflows') and workflow_id in getattr(user_obj, 'accessible_workflows', []):
+            background_tasks.add_task(import_and_execute_workflow, workflow_data, current_user=user_obj)
+            executed_users.append(user_obj.username)
+
+    logger.info(f"Workflow {workflow_id} executed for users: {executed_users}")
     return True
 
 @router.get("/serviceChain/data/{service_chain_id}")
