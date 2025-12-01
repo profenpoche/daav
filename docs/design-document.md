@@ -478,73 +478,208 @@ And around the project all business action  :
 - ...
 
 
-## Test specification
+## Test Specification
 
+The DAAV testing strategy ensures that:
+- Functionality is efficient and meets requirements
+- Potential risks are under control
+- Performance meets expected criteria
+- Users can successfully complete their workflows
 
+## Test Reproduction
 
-### Internal unit tests
+To reproduce (manual) tests, you need to deploy DAAV using Docker or local installation.
 
-Front-end:
+### Prerequisites
 
-- Karma for test execution
-- Jasmine for unit test.
+Before testing DAAV, ensure you have:
+- Docker and Docker Compose installed (recommended), OR
+- Node.js 18+, Python 3.10+, MongoDB for local installation
+- Web browser (Chrome, Firefox, Edge, or Safari)
 
-Unit test for all core class function : 
+### Running Instructions (Docker - Recommended)
 
-- Board render.
-- Board tools.
-- Import project
-- Export project
-- Node Factory
-- Socket rules interaction between connectable items.
-- Revision
+1. Clone the repository:
+```bash
+git clone https://github.com/Prometheus-X-association/daav.git
+cd daav
+```
 
-Back-end : 
+2. Start the services:
+```bash
+docker-compose up -d
+```
 
-- Pytest
+3. Wait for services to be ready (30-60 seconds)
 
-Unit test for all endpoints and core class function.
+4. Access the application:
+   - **Frontend**: http://localhost:8080
+   - **Backend API**: http://localhost:8081
+   - **API Documentation**: http://localhost:8081/docs
+   - **MongoDB**: mongodb://admin:admin123@localhost:27017
 
-Core class :
+### Default Credentials
 
-- Node :  Process (each child class specific work)
-- Node : Execute
-- Workflow : Import/Update workflow
-- Workflow : Execute
+- Username: `admin`
+- Password: `Admin123!`
 
-API endpoints :
+### Configuration
 
-- Auth
-- Create update delete User and credential
-- Create update delete DataConnector
-- Create Load Save Delete workflow
-- Load and  execute workflow
-- Node Retrieve input/ouput example and data scheme ( frontend visualization)
-- Node Test/Execute Node
+The default configuration should work out-of-the-box. For customization:
+- Backend environment variables: See `backendApi/.env.example`
+- Frontend configuration: See `frontendApp/src/environments/`
 
-### Component-level testing
+For detailed deployment instructions, see [README.md](../README.md) and [DOCKER_DEPLOYMENT.md](../DOCKER_DEPLOYMENT.md).
 
-Charge Test with K6 to evaluate API performance.
+---
 
-### UI test 
-Front end : Selenium to test custom node usage deploy and interaction with custom parameter.
+## Test
 
+The DAAV testing strategy will focus on ensuring the accuracy, reliability, and performance of its functionality. We will use a combination of unit testing, integration testing, component-level testing, and user interface testing. The test environment will reproduce conditions similar to those in production in order to accurately validate BB behavior. Acceptance criteria will be defined based on user stories, functional requirements, and performance criteria.
 
-## Testing independent features
+**Summary of tests:**
+- Validate requirements and potential risks
+- Testing independent features
+- Internal unit tests (pytest, karma/jasmine)
+- Component-level testing (performance)
+- Manual usage scenarios
+- Comprehensive test definitions
 
-Manual tests to prove individual functionalities.
+---
 
-### Backend Health Check: Verify backend service availability
+## Validate Requirements and Potential Risks
+
+Tests to validate functional requirements and mitigate potential risks identified in the design phase.
+
+| Test ID | Description | Prerequisites | Test | Status | Test Case |
+|---|---|---|---|---|---|
+| **System Health & Infrastructure** ||||||
+| SYS-001 | Backend API health check | DAAV backend deployed and accessible | GET `/health` - Verify HTTP 200, JSON response with status, app_name, version | ✅ Manual test | Test Case 0 |
+| SYS-002 | API documentation accessibility | Backend running | Navigate to `/docs` - Verify Swagger UI loads with all endpoints | ✅ Manual test | Test Case 1 |
+| **Authentication & User Management** ||||||
+| AUTH-001 | User registration with valid credentials | Application is running. No existing user with same username/email | Username: `testuser`, Email: `testuser@example.com`, Password: `TestPass123!`, Full Name: `Test User` - Verify account created, can login | ✅ Unit tests | test_auth_service.py, test_user_service.py |
+| AUTH-002 | User login with valid credentials | User account exists (username `admin`, password `Admin123!`) | Login with valid credentials - Verify access_token and refresh_token returned | ✅ Both (manual + unit) | Test Case 2, test_auth_service.py |
+| AUTH-003 | User login with invalid credentials | Application is running | Login with username `admin`, password `wrongpassword` - Verify HTTP 401, error message | ✅ Unit tests | test_auth_service.py |
+| AUTH-004 | Password reset flow | User exists with email, email service configured | Request password reset for `testuser@example.com` - Verify reset token generated | ⚠️ Partial (unit only) | test_auth_service.py, test_email_service.py |
+| AUTH-005 | Change password for authenticated user | User is logged in with valid access token | Change from `Admin123!` to `NewAdmin123!` - Verify new password works, old doesn't | ✅ Unit tests | test_auth_service.py |
+| AUTH-006 | Token refresh using valid refresh token | User has valid refresh token | Use refresh token - Verify new access and refresh tokens generated | ✅ Unit tests | test_auth_service.py |
+| AUTH-007 | Access protected resource without authentication | Application is running | Request to `/auth/me` without Authorization header - Verify HTTP 401 | ✅ Unit tests | test_auth_service.py |
+| AUTH-008 | Admin creates new user | Admin user is logged in | Create user: username `newuser`, email `newuser@example.com`, role `user` - Verify user created | ✅ Unit tests | test_user_service.py |
+| AUTH-009 | Admin deactivates user account | Admin logged in, target user exists and is active | Deactivate user by ID - Verify user cannot login, data preserved | ✅ Unit tests | test_user_service.py |
+| AUTH-010 | Admin activates deactivated user | Admin logged in, target user exists and is deactivated | Activate user by ID - Verify user can login again | ✅ Unit tests | test_user_service.py |
+| AUTH-011 | Non-admin attempts admin operation | Regular user is logged in (not admin) | Attempt to create user as non-admin - Verify HTTP 403, operation denied | ✅ Unit tests | test_auth_service.py |
+| **Dataset Management** ||||||
+| DATA-001 | Create file dataset (CSV/JSON) | User authenticated, file exists | Name: `test-dataset`, Type: `file`, File: `sample.csv` or `data.json` - Verify dataset created, appears in list, structure preserved | ✅ Both (manual + unit) | Test Case 3, test_dataset_service.py |
+| DATA-003 | Create file dataset (Parquet) | User authenticated, Parquet file exists | Name: `parquet-dataset`, Type: `file`, File: `data.parquet` - Verify schema readable | ✅ Unit tests | test_dataset_service.py |
+| DATA-004 | Create MySQL dataset connection | User authenticated, MySQL database accessible | Name: `mysql-dataset`, Host: `db.example.com`, Port: 3306, Database: `testdb`, Table: `users` - Verify connection created, credentials encrypted | ✅ Unit tests | test_dataset_service.py |
+| DATA-005 | Create MongoDB dataset connection | User authenticated, MongoDB accessible | Name: `mongo-dataset`, URI: `mongodb://localhost:27017`, Database: `testdb`, Collection: `users` - Verify connection successful | ✅ Unit tests | test_dataset_service.py |
+| DATA-006 | Create API dataset connection | User authenticated, External API accessible | Name: `api-dataset`, URL: `https://api.example.com/data`, Method: GET, Headers with auth - Verify API callable | ✅ Unit tests | test_dataset_service.py |
+| DATA-007 | Create Elasticsearch dataset | User authenticated, Elasticsearch accessible | Name: `elastic-dataset`, URL: `http://localhost:9200`, Index: `test-index` - Verify index queryable | ✅ Unit tests | test_dataset_service.py |
+| DATA-008 | Create PTX dataset connection | User authenticated, PDC accessible | Name: `ptx-dataset`, Type: `ptx`, PDC URL, Bearer token - Verify catalog retrievable | ✅ Unit tests | test_dataset_service.py, test_pdc_service.py |
+| DATA-009 | Upload file through API | User authenticated, file size within limits | Upload `upload.csv` (< 100MB), Folder: `datasets` - Verify file uploaded, path returned, user isolated | ✅ Unit tests | test_dataset_service.py |
+| DATA-010 | Upload file exceeding size limit | User authenticated | Upload file > 100MB - Verify HTTP 413, appropriate error message | ✅ Unit tests | test_dataset_service.py |
+| DATA-011 | Retrieve dataset content | User authenticated, dataset exists, user has access | Dataset ID, Pagination: page 1, limit 100 - Verify content returned, pagination works | ✅ Both (manual + unit) | Test Case 4, test_dataset_service.py |
+| DATA-012 | Edit dataset configuration | User authenticated, user owns dataset | Dataset ID, New name: `updated-dataset` - Verify changes persisted | ✅ Unit tests | test_dataset_service.py |
+| DATA-013 | Delete dataset | User authenticated, user owns dataset | Dataset ID - Verify deleted, no longer in list, files cleaned up | ✅ Unit tests | test_dataset_service.py |
+| DATA-014 | Access dataset without permission | User authenticated, dataset belongs to another user | Attempt to access other user's dataset - Verify HTTP 403, access denied | ✅ Unit tests | test_dataset_service.py |
+| DATA-015 | Share dataset with another user | User owns dataset, target user exists | Dataset ID, Target User ID, Permission: `read` - Verify share successful, target can access | ✅ Unit tests | test_dataset_service.py |
+| DATA-016 | Unshare dataset | Dataset is shared, user is owner | Dataset ID, Target User ID - Verify share removed, target loses access | ✅ Unit tests | test_dataset_service.py |
+| **Workflow Creation & Management** ||||||
+| WF-001 | Create empty workflow | User authenticated | Name: `test-workflow`, Revision: `1.0`, Schema: empty - Verify workflow ID returned, appears in list | ✅ Both (manual + unit) | Test Case 6, test_workflow_service.py |
+| WF-002 | Create workflow with single input node | User authenticated, dataset exists | Name: `simple-workflow`, Nodes: DataFileBlock, Dataset ID - Verify node configured correctly | ✅ Both (manual + unit) | Test Case 5, 6, test_workflow_service.py |
+| WF-003 | Create workflow with input-transform-output chain | User authenticated, dataset exists | Nodes: DataFileBlock → FilterTransform → FileOutput - Verify all connected, executable | ✅ Unit tests | test_workflow_service.py |
+| WF-004 | Save workflow with complex transformations | User authenticated, multiple datasets exist | Workflow with 10+ nodes (Filter, Flatten, Merge, Join) - Verify all configs preserved | ✅ Unit tests | test_workflow_service.py |
+| WF-005 | Update existing workflow | User authenticated, workflow exists, user owns it | Workflow ID, updated schema with new nodes - Verify updated, revision tracked | ✅ Unit tests | test_workflow_service.py |
+| WF-006 | Delete workflow | User authenticated, user owns workflow | Workflow ID - Verify deleted, no longer in list, outputs cleaned | ✅ Unit tests | test_workflow_service.py |
+| WF-007 | Retrieve workflow by ID | User authenticated, user has access | Workflow ID - Verify data returned, schema complete | ✅ Unit tests | test_workflow_service.py |
+| WF-008 | List all user workflows | User authenticated, user has workflows | User access token - Verify only accessible workflows shown | ✅ Unit tests | test_workflow_service.py |
+| WF-009 | Export workflow as JSON | Workflow exists, user has access | Workflow ID - Verify complete JSON returned, all nodes and connections | ✅ Unit tests | test_workflow_service.py |
+| WF-010 | Import workflow from JSON | User authenticated, valid JSON provided | Valid workflow JSON - Verify imported, new ID assigned, nodes restored | ✅ Unit tests | test_workflow_service.py |
+| **Workflow Execution** ||||||
+| EXEC-001 | Execute simple workflow (CSV → File) | Valid workflow with CSV input and file output | Workflow ID - Verify executes, output file created, transformation correct | ✅ Both (manual + unit) | Test Case 7, test_workflow.py, test_node.py |
+| EXEC-002 | Execute workflow with filter transformation | Workflow with filter node, input data available | Workflow ID, Filter: `age > 18` - Verify only filtered records in output | ✅ Unit tests | test_filter_transform.py |
+| EXEC-003 | Execute workflow with flatten transformation | Workflow with nested JSON input, flatten node | Workflow ID, nested JSON data - Verify nested structures flattened | ✅ Unit tests | test_flatten_transform.py |
+| EXEC-004 | Execute workflow with merge transformation | Workflow merges two datasets, both available | Workflow ID, Dataset A + B, Merge key: `id` - Verify merged correctly | ✅ Unit tests | test_merge_transform.py |
+| EXEC-005 | Execute workflow with join transformation | Workflow joins two datasets, join configured | Workflow ID, Left join on `user_id` - Verify join correct, null handling ok | ✅ Unit tests | test_workflow.py |
+| EXEC-006 | Execute workflow with multiple transformations | Complex workflow with 5+ transform nodes | Workflow ID - Verify all execute in order, data flows correctly | ✅ Unit tests | test_workflow.py, test_execution_context.py |
+| EXEC-007 | Execute workflow with MySQL output | Workflow outputs to MySQL table, DB accessible | Workflow ID, Target table: `results` - Verify data written, table created if needed | ✅ Unit tests | test_node.py |
+| EXEC-008 | Execute workflow with MongoDB output | Workflow outputs to MongoDB, DB accessible | Workflow ID, Collection: `results` - Verify data written, documents structured | ✅ Unit tests | test_node.py |
+| EXEC-009 | Execute workflow with API output | Workflow configured with custom API endpoint | Workflow ID, API URL: `/api/custom-path` - Verify endpoint exposed, returns results | ✅ Unit tests | test_workflow.py |
+| EXEC-010 | Execute incomplete workflow | Workflow has disconnected nodes, incomplete config | Incomplete workflow ID - Verify fails gracefully, error indicates missing connections | ✅ Unit tests | test_workflow.py |
+| EXEC-011 | Execute workflow with invalid data | Workflow expects specific schema, input doesn't match | Workflow ID, invalid input - Verify validation error, schema mismatch indicated | ✅ Unit tests | test_node.py |
+| EXEC-012 | Execute workflow recursively (dependencies) | Workflow with dependent nodes, parents incomplete | Execute specific node - Verify parents execute first, dependencies resolved | ✅ Unit tests | test_workflow.py, test_execution_context.py |
+| **API Endpoints & Data Exposure** ||||||
+| API-001 | Access custom API endpoint | Workflow with ApiOutput, custom path configured | GET `/api/custom-path` - Verify data returned, workflow executed if needed | ✅ Unit tests | test_workflow.py |
+| API-002 | Access API endpoint with authentication token | ApiOutput configured with token auth | GET `/api/secure-path`, Header: `X-API-Key: <token>` - Verify auth works, invalid rejected | ✅ Unit tests | test_workflow.py |
+| API-003 | Access API endpoint with query filters | ApiOutput endpoint exposed, data available | GET `/api/data?filter[age][operator]=>&filter[age][value]=18` - Verify filtered data returned | ✅ Unit tests | test_workflow.py |
+| API-004 | Access workflow output by workflow ID | Workflow executed, output generated | GET `/api/workflow/<id>`, with auth - Verify latest execution results returned | ✅ Unit tests | test_workflow.py |
+| API-005 | Access non-existent API endpoint | No workflow configured for path | GET `/api/non-existent` - Verify HTTP 404, appropriate error | ✅ Unit tests | test_workflow.py |
+| API-006 | Execute and retrieve workflow via API | Valid workflow exists | POST `/workflows/execute/<id>` - Verify executes, results available | ✅ Unit tests | test_workflow_service.py |
+| **Prometheus-X Integration (PTX)** ||||||
+| PTX-001 | Create PTX dataset connection | User authenticated, PDC connector accessible | Name: `ptx-connector`, PDC URL, Token - Verify connection created, token secured | ✅ Unit tests | test_pdc_service.py |
+| PTX-002 | Retrieve catalog from PTX connection | PTX dataset configured, PDC accessible | Connection ID - Verify catalog retrieved, offerings/resources listed | ✅ Unit tests | test_pdc_service.py |
+| PTX-003 | Get data resources from PTX | PTX connection exists, catalog has resources | Connection ID - Verify resources listed, metadata complete | ✅ Unit tests | test_pdc_service.py |
+| PTX-004 | Update data resource URL in PTX | PTX connection exists, resource exists in catalog | Connection ID, Resource ID, New URL - Verify URL updated in PDC | ✅ Unit tests | test_pdc_service.py |
+| PTX-005 | Execute service chain workflow | Service chain configured, workflow assigned | POST `/ptx/executeChainService`, Headers with chain ID, Payload - Verify executed in chain context | ✅ Unit tests | test_pdc_service.py |
+| PTX-006 | Trigger data exchange via PTX | PTX connection configured, exchange endpoint exists | Connection ID, Data exchange config - Verify exchange triggered, response handled | ✅ Unit tests | test_pdc_service.py |
+| PTX-007 | Store and retrieve service chain data | Service chain ID exists, data stored temporarily | Service Chain ID, Store payload - Verify data stored, retrievable, cleaned after | ✅ Unit tests | test_pdc_service.py |
+| PTX-008 | Access PDC output endpoint | Workflow with PdcOutput, custom URL configured | GET `/output/<custom_path>`, Headers: M2M credentials - Verify workflow executes, output returned | ✅ Unit tests | test_pdc_service.py |
+| PTX-009 | Receive pushed data from PDC | PDC configured to push data, endpoint listening | POST `/ptx/pdcInput`, Data payload from PDC - Verify data received, processed, acknowledged | ✅ Unit tests | test_pdc_service.py |
+| **Security & Access Control** ||||||
+| SEC-001 | Path traversal prevention in file upload | User authenticated | Upload file with name: `../../etc/passwd` - Verify rejected/sanitized, no traversal | ✅ Unit tests | test_path_security.py |
+| SEC-002 | File extension validation | User authenticated | Upload file: `malicious.exe` - Verify rejected, only allowed extensions accepted | ✅ Unit tests | test_path_security.py |
+| SEC-003 | File size limit enforcement | User authenticated | Upload 150MB file (limit 100MB) - Verify HTTP 413, limit enforced before full upload | ✅ Unit tests | test_security_middleware.py |
+| SEC-004 | SQL injection prevention | MySQL dataset configured | Query with injection: `'; DROP TABLE users; --` - Verify prevented, parameterized, no damage | ✅ Unit tests | test_dataset_service.py |
+| SEC-005 | XSS prevention in user inputs | User creates dataset with name | Name: `<script>alert('XSS')</script>` - Verify sanitized, script escaped/removed | ✅ Unit tests | test_security_middleware.py |
+| SEC-006 | Rate limiting on API endpoints | Public API endpoint configured | 100 requests in 10 seconds to same endpoint - Verify HTTP 429, limit triggered | ⚠️ Partial (unit only) | test_security_middleware.py |
+| SEC-007 | CORS policy enforcement | Frontend on different origin | API request from `http://evil.com` - Verify blocked if not allowed, CORS enforced | ✅ Unit tests | test_security_middleware.py |
+| SEC-008 | Sensitive data encryption | User creates dataset with password | Password: `MySecretPass123` - Verify encrypted in DB, not in API responses | ✅ Unit tests | test_dataset_service.py |
+| SEC-009 | User data isolation | Two users with same filename | User A uploads `data.csv`, User B uploads `data.csv` - Verify stored separately, isolation maintained | ✅ Unit tests | test_path_security.py |
+| SEC-010 | Token expiration enforcement | Access token expired (> 60 min old) | Request with expired token - Verify HTTP 401, must refresh/re-login | ✅ Unit tests | test_auth_service.py |
+| **Data Processing & Transformations** ||||||
+| PROC-001 | Process CSV file with headers | CSV file with headers uploaded | File with columns: `name,age,city` - Verify parsed, headers detected, names preserved | ✅ Unit tests | test_dataset_service.py |
+| PROC-002 | Process CSV file without headers | CSV file without headers | Headerless CSV data - Verify parsed, auto-generated column names | ✅ Unit tests | test_dataset_service.py |
+| PROC-003 | Process JSON array | JSON file with array of objects | `[{id: 1, name: "A"}, {id: 2, name: "B"}]` - Verify array parsed, objects accessible | ✅ Unit tests | test_dataset_service.py |
+| PROC-004 | Process nested JSON | JSON with nested structures | `{user: {profile: {age: 25}}}` - Verify nested preserved, dot notation accessible | ✅ Unit tests | test_dataset_service.py, test_flatten_transform.py |
+| PROC-005 | Process Parquet file | Parquet file uploaded | Parquet with schema and data - Verify schema read, data queryable, types preserved | ✅ Unit tests | test_dataset_service.py |
+| PROC-006 | Process Excel file (.xlsx) | Excel file uploaded with multiple sheets | Excel with 3 sheets - Verify all detected, sheet selection available | ✅ Unit tests | test_dataset_service.py |
+| PROC-007 | Handle missing values in data | Dataset with null/empty values | Data with nulls and empty strings - Verify handled gracefully, distinguished | ✅ Unit tests | test_node.py, test_filter_transform.py |
+| PROC-008 | Handle large dataset (1M+ rows) | Large CSV file (> 1 million rows) | 1M row CSV - Verify processed efficiently, pagination works, no timeout | ✅ Unit tests | test_dataset_service.py |
+| PROC-009 | Convert between data formats | Input CSV, output Parquet | CSV → Parquet conversion - Verify successful, data integrity maintained | ✅ Unit tests | test_node.py |
+| PROC-010 | Aggregate data (groupBy) | Dataset with groupable data, transform with aggregate | Group by `category`, aggregate `sum(amount)` - Verify grouping correct, aggregation accurate | ✅ Unit tests | test_workflow.py |
+| PROC-011 | Sort data | Dataset with unsorted data, sort transformation | Sort by `age DESC, name ASC` - Verify multi-column sort works, order correct | ✅ Unit tests | test_workflow.py |
+| PROC-012 | Remove duplicates | Dataset with duplicate rows | Deduplicate on columns: `id` - Verify duplicates removed, unique rows remain | ✅ Unit tests | test_workflow.py |
+| **Error Handling & Edge Cases** ||||||
+| ERR-001 | Handle malformed JSON input | User uploads JSON file | Invalid JSON: `{broken: syntax` - Verify error caught, helpful message, line number if possible | ✅ Unit tests | test_dataset_service.py |
+| ERR-002 | Handle corrupt file upload | User uploads corrupted file | Corrupted CSV file - Verify error detected, upload fails with reason | ✅ Unit tests | test_dataset_service.py |
+| ERR-003 | Handle database connection failure | MySQL dataset configured, database is down | Execute workflow with MySQL input - Verify connection error caught, clear error | ✅ Unit tests | test_dataset_service.py |
+| ERR-004 | Handle external API timeout | API dataset configured, API slow/unresponsive | Workflow with API call (30s+ response) - Verify timeout handled, configurable, clear error | ✅ Unit tests | test_dataset_service.py |
+| ERR-005 | Handle missing required fields | Create dataset without required field | Dataset without `name` field - Verify HTTP 422, required fields listed | ✅ Unit tests | test_dataset_service.py, test_workflow_service.py |
+| ERR-006 | Handle concurrent workflow edits | Two users edit same workflow simultaneously | User A and B save workflow at same time - Verify conflict detected, no corruption | ⚠️ Partial (unit only) | test_workflow_service.py |
+| ERR-007 | Handle workflow circular dependencies | User creates workflow with circular connections | Node A → Node B → Node A - Verify detected, validation prevents save, error explains | ✅ Unit tests | test_workflow.py |
+| ERR-008 | Handle insufficient disk space | Server disk space full, file upload attempted | Upload large file when disk full - Verify HTTP 507, graceful degradation | ⚠️ Not implemented | test_dataset_service.py |
+| ERR-009 | Handle memory exhaustion on large data | Very large dataset processing | Process 10GB+ file - Verify memory limit respected, streaming/chunking, OOM error if needed | ✅ Unit tests | test_dataset_service.py, test_workflow.py |
+| ERR-010 | Handle invalid credentials in dataset | MySQL dataset with wrong password | Credentials: user `admin`, wrong password - Verify auth error caught, clear message, no leak | ✅ Unit tests | test_dataset_service.py |
+
+---
+
+## Testing Independent Features
+
+Small manual tests to prove individual features work correctly.
+
+### Test Case 0: Backend Health Check
+
 **Objective:** Ensure the DAAV backend service is running and responding correctly.
 
 **Precondition:** DAAV backend service is deployed and accessible.
 
 **Steps:**
-1. Send a GET request to the backend by default for docker instance : http://localhost:8081/health
-2. Verify the response status code is 200
-3. Verify the response body contains the expected JSON
+1. Open a web browser or terminal
+2. Send a GET request to `http://localhost:8081/health`
+3. Verify the response status code is `200 OK`
+4. Verify the response body contains the expected JSON
 
-**Expected Result:** 
+**Expected Result:**
 ```json
 {
   "status": "healthy",
@@ -553,29 +688,108 @@ Manual tests to prove individual functionalities.
   "version": "2.0.0"
 }
 ```
-**Result:** Validated.
 
+**Result:** Validated
 
-### Test Case 1: Verify dataset creation
-**Objective:** Ensure datasets can be created with different input types.
+---
 
-**Precondition:** DAAV interface is accessible and functional.
+### Test Case 1: Verify API Documentation Access
+
+**Objective:** Ensure the Swagger API documentation is accessible.
+
+**Precondition:** Backend is running.
 
 **Steps:**
-1. Access DAAV interface
-2. Click on "Add Dataset"
-3. Select "File" as type
-4. Upload a valid JSON file 
-5. Enter a name for the dataset
-6. Confirm creation
+1. Open browser
+2. Navigate to `http://localhost:8081/docs`
+3. Verify Swagger UI loads
 
-[Json example](prize.json)
+**Expected Result:** Swagger documentation page displays with all available endpoints.
+
+**Result:** Validated
+
+---
+
+### Test Case 2: Verify User Authentication
+
+**Objective:** Ensure users can log in with valid credentials.
+
+**Precondition:** Application is running.
+
+**Steps:**
+1. Access the login page
+2. Enter username: `admin`
+3. Enter password: `Admin123!`
+4. Click "Login" button
+
+**Expected Result:** User is logged in and redirected to the main dashboard.
+
+**Result:** Validated
+
+---
+
+### Test Case 3: Verify Dataset Creation
+
+**Objective:** Ensure datasets can be created with file upload (JSON format).
+
+**Precondition:** 
+- DAAV interface is accessible
+- User is logged in
+- A valid JSON file is available ([test-files/prize.json](test-files/prize.json))
+
+**Steps:**
+1. Access DAAV interface at `http://localhost:8080`
+2. Navigate to the "Datasets" section
+3. Click on "Add Dataset" button
+4. Select "File" as type
+5. Upload the JSON file
+6. Enter dataset name
+7. Confirm creation
 
 **Expected Result:** Dataset is created and appears in the list.
 
-**Result:** Validated.
+**Result:** Validated
 
-### Test Case 2: Verify workflow creation
+---
+
+### Test Case 4: Verify Dataset Content Retrieval
+
+**Objective:** Ensure dataset content can be retrieved and displayed.
+
+**Precondition:** 
+- User is logged in
+- Dataset exists
+
+**Steps:**
+1. Select a dataset from the list
+2. Click to view dataset details
+3. Observe data preview
+
+**Expected Result:** Dataset content is displayed correctly with proper formatting.
+
+**Result:** Validated
+
+---
+
+### Test Case 5: Verify Node Connection in Workflow Editor
+
+**Objective:** Ensure nodes can be connected in the visual workflow editor.
+
+**Precondition:** Workflow editor is open with at least two compatible nodes.
+
+**Steps:**
+1. Click on output port of first node
+2. Drag connection to input port of second node
+3. Release to create connection
+
+**Expected Result:** Visual connection line appears between nodes and connection is saved.
+
+**Result:** Validated
+
+---
+
+### Test Case 6: Verify Workflow Creation
+
 **Objective:** Ensure a workflow can be created and saved.
 
 **Precondition:** At least one dataset exists.
@@ -583,35 +797,357 @@ Manual tests to prove individual functionalities.
 **Steps:**
 1. Navigate to "Transformation" tab
 2. Click on "New Workflow"
-3. Drag and drop a DataFileBlock
-4. Configure the block by selecting the previously created dataset
-5. Add a transformation drag and drop FlattenTransfrom
-6. Add an output drag and drop FileOuput
-7. Configure the block by adding a failename
+3. Drag and drop a DataFileBlock node
+4. Configure the block by selecting the dataset
+5. Add a FlattenTransform node
+6. Add a FileOutput node
+7. Configure the output filename
 8. Connect the blocks
 9. Save the workflow
 
 **Expected Result:** Workflow is saved with a unique ID.
 
-**Result:** Validated.
+**Result:** Validated
 
-### Test Case 3: Verify workflow execution
-**Objective:** Ensure a workflow can be executed.
+---
+
+### Test Case 7: Verify Workflow Execution
+
+**Objective:** Ensure a workflow can be executed successfully.
 
 **Precondition:** A valid workflow exists.
 
 **Steps:**
 1. Select a saved workflow
 2. Click the play button
-3. Observe execution
+3. Observe execution progress
 
 **Expected Result:** Workflow executes without error and produces expected result.
 
-**Result:** Validated.
+**Result:** Validated
+
+---
+
+**In conclusion, all the core functional tests are validated.**
+
+---
+
+## Manual Usage Scenarios
+
+Using real-world personas and use cases, we established several detailed test scenarios that demonstrate end-to-end functionality.
+
+### Persona 1: Data Analyst - Paul (Single Organization)
+
+**Profile:**
+- Name: Paul
+- Role: Data Analyst at EdTech Company
+- Needs: Aggregate student performance data from multiple sources
+- Technical Level: Intermediate
+- Organization: Single company with one data source
+
+**Test Scenario 1: Paul creates a data aggregation workflow**
+
+**Context:** Paul needs to combine CSV files from different departments to create a unified dashboard.
+
+**Prerequisites:**
+- DAAV deployed and accessible
+- User account created:
+  - Username: `paul`
+  - Password: `DataAnalyst123!`
+  - Role: `user`
+- Two CSV files available:
+  - [test-files/students_scores.csv](test-files/students_scores.csv) (columns: student_id, name, math_score, science_score)
+  - [test-files/students_attendance.csv](test-files/students_attendance.csv) (columns: student_id, attendance_rate)
+
+**Steps:**
+1. **Login:**
+   - Navigate to `http://localhost:8080`
+   - Enter username: `paul`
+   - Enter password: `DataAnalyst123!`
+   - Click "Login"
+
+2. **Upload CSV files:**
+   - Go to "Datasets" tab
+   - Click "Add Dataset"
+   - Select "File" type
+   - Upload `students_scores.csv`
+   - Name it: `student-scores`
+   - Click "Save"
+   - Repeat for `students_attendance.csv`, name it: `student-attendance`
+
+3. **Create workflow:**
+   - Navigate to "Workflows" tab
+   - Click "New Workflow"
+   - Name workflow: `student-performance-report`
+
+4. **Build data pipeline:**
+   - Drag two "DataFileBlock" nodes to canvas
+   - Configure first node: select `student-scores` dataset
+   - Configure second node: select `student-attendance` dataset
+   - Drag "MergeTransform" node to canvas
+   - Connect both DataFileBlock outputs to MergeTransform inputs
+   - Configure merge: join on `student_id` column
+   - Drag "FileOutput" node to canvas
+   - Connect MergeTransform output to FileOutput input
+   - Configure output: filename `student_report.parquet`
+
+5. **Execute workflow:**
+   - Click "Save" to save workflow
+   - Click "Execute" button
+   - Wait for execution to complete
+
+6. **Verify results:**
+   - Check execution status shows "Success"
+   - Download output file `student_report.parquet`
+   - Verify merged data contains all columns from both sources
+
+**Expected Result:**
+- Workflow executes successfully
+- Output file contains merged data with columns: student_id, name, math_score, science_score, attendance_rate
+- All student records are present with matching attendance data
+
+**Validation:** Test Scenario 1 Validated
+
+---
+
+### Persona 2: AI Developer - Christophe (Multiple Data Sources)
+
+**Profile:**
+- Name: Christophe
+- Role: AI/ML Engineer
+- Needs: Prepare training data from multiple data sources
+- Technical Level: Advanced
+- Organization: Works with multiple data providers
+
+**Test Scenario 2: Christophe prepares ML training data**
+
+**Context:** Christophe needs to combine data from a public REST API and a local JSON file, apply transformations, and export to Parquet format for ML training.
+
+**Prerequisites:**
+- DAAV deployed and accessible
+- User account created:
+  - Username: `christophe`
+  - Password: `MLEngineer123!`
+  - Role: `user`
+- Local JSON file available: [test-files/ml_features.json](test-files/ml_features.json) (contains: id, feature1, feature2, category)
+
+**Steps:**
+1. **Login:**
+   - Access DAAV at `http://localhost:8080`
+   - Enter username: `christophe`
+   - Enter password: `MLEngineer123!`
+   - Click "Login"
+
+2. **Create API dataset:**
+   - Go to "Datasets"
+   - Click "Add Dataset"
+   - Select "API" type
+   - Name: `api-users`
+   - URL: `https://jsonplaceholder.typicode.com/users`
+   - Method: GET
+   - Headers: Leave empty (no authentication needed)
+   - Save dataset
+   - Click "Test Connection" to verify API is accessible
+
+3. **Upload JSON file:**
+   - Click "Add Dataset"
+   - Select "File" type
+   - Upload `ml_features.json`
+   - Name it: `ml-features`
+   - Click "Save"
+
+4. **Build ML data pipeline:**
+   - Navigate to "Workflows" tab
+   - Click "New Workflow"
+   - Name workflow: `ml-training-pipeline`
+   - Add "DataApiBlock" node
+   - Configure: select `api-users` dataset
+   - Add "DataFileBlock" node
+   - Configure: select `ml-features` dataset
+   - Add "FilterTransform" node
+   - Configure filter: remove null values
+   - Add "FlattenTransform" node for nested JSON (from API)
+   - Add "MergeTransform" node
+   - Connect both data sources to MergeTransform
+   - Configure merge: join on `id` column
+   - Add "FileOutput" node
+   - Connect MergeTransform output to FileOutput
+   - Configure output: `training_data.parquet` format
+
+5. **Configure and execute:**
+   - Connect all nodes as described
+   - Save workflow
+   - Click "Execute"
+   - Monitor execution progress
+
+6. **Verify results:**
+   - Check execution status shows "Success"
+   - Download output file `training_data.parquet`
+   - Verify merged data contains columns from both sources (id, name, email, feature1, feature2, category)
+
+**Expected Result:**
+- API data from JSONPlaceholder successfully retrieved (10 users)
+- Local JSON file data successfully loaded
+- Null values are filtered out
+- Nested structures from API are flattened
+- Data merged on `id` column
+- Output Parquet file ready for ML training
+- File schema compatible with common ML libraries (pandas, scikit-learn)
+
+**Validation:** ✅ Test Scenario 2 Validated
+
+---
+
+### Persona 3: System Administrator - Fatim (Multi-Organization with PDC)
+
+**Profile:**
+- Name: Fatim
+- Role: System Administrator
+- Needs: Expose data through Prometheus-X dataspace
+- Technical Level: Expert
+- Organization: Part of Prometheus-X consortium
+
+**Test Scenario 3: Fatim configures PDC data exchange**
+
+**Context:** Fatim needs to create a workflow that receives data from a PDC (Prometheus Data Connector), processes it, and exposes it via Prometheus-X service chain.
+
+**Prerequisites:**
+- DAAV deployed with PTX integration
+- User account created:
+  - Username: `fatim`
+  - Password: `SysAdmin123!`
+  - Role: `admin`
+- PDC connector configured
+- Valid PDC credentials and contract
+
+**Steps:**
+1. **Login:**
+   - Navigate to `http://localhost:8080`
+   - Enter username: `fatim`
+   - Enter password: `SysAdmin123!`
+   - Click "Login"
+
+2. **Setup PDC connection:**
+   - Go to "Datasets"
+   - Click "Add Dataset"
+   - Select "Prometheus-X (PDC)" type
+   - Name: `pdc-learning-records`
+   - PDC URL: `https://pdc.example.com`
+   - Bearer Token: `<valid_token>`
+   - Save connection
+
+3. **Verify catalog access:**
+   - Click on PDC dataset
+   - View "Catalog" tab
+   - Verify service offerings and data resources are listed
+   - Confirm participant information is displayed
+
+4. **Create workflow with PDC:**
+   - Create new workflow: `pdc-data-processing`
+   - Add PDC input node (ServiceChainInput)
+   - Add transformation nodes (Filter, Aggregate)
+   - Add PDC output node (PdcOutput)
+   - Configure custom URL: `/api/processed-learning-data`
+
+5. **Configure service chain:**
+   - In PdcOutput node, configure:
+     - URL path: `processed-learning-data`
+     - Enable M2M authentication
+     - Set access token
+   - Save workflow
+
+6. **Test data exchange:**
+   - Trigger service chain execution
+   - Send test data through PDC
+   - Verify workflow receives data
+   - Check transformation applied correctly
+   - Verify output endpoint is accessible
+
+7. **Verify endpoint access:**
+   - External system sends GET request to: `http://localhost:8081/output/processed-learning-data`
+   - With header: `Authorization: Bearer <m2m_token>`
+   - Verify transformed data is returned
+
+**Expected Result:**
+- PDC connection successfully established
+- Catalog data retrieved from PDC
+- Workflow processes incoming data from service chain
+- Output endpoint exposed with M2M authentication
+- External systems can access processed data
+- Data exchange follows Prometheus-X protocols
+
+**Validation:** Test Scenario 3 Validated
+
+---
+
+### Test Scenario 4: Error Handling - Invalid Dataset Connection
+
+**Objective:** Verify graceful error handling when dataset connection fails.
+
+**Context:** User configures a MySQL dataset with incorrect credentials.
+
+**Steps:**
+1. Create MySQL dataset with wrong password
+2. Attempt to retrieve data from the dataset
+3. Observe error handling
+
+**Expected Result:**
+- Clear error message displayed
+- Error indicates authentication failure
+- No sensitive credentials exposed in error
+- Application remains stable
+
+**Validation:** Test Scenario 4 Validated
+
+---
+
+## Internal Unit Tests
+
+DAAV includes comprehensive automated test suites to ensure code quality and functionality.
+
+## Test Execution Information
+
+### Internal Unit Tests
+
+**Backend (Python/Pytest):**
+- **Test Framework**: Pytest
+- **Test Files**: `backendApi/tests/`
+- **Test Categories**:
+  - Services: Auth, User, Dataset, Workflow, PDC, Email, Migration
+  - Core: Workflow execution, Node processing, Execution context
+  - Nodes: Input nodes, Transform nodes, Output nodes
+  - Security: Path validation, Security middleware
+  - Utils: Helper functions
+
+**Commands to run backend tests:**
+```bash
+cd backendApi
+python -m pytest                          # Run all tests
+python -m pytest tests/services/          # Run service tests
+python -m pytest tests/nodes/             # Run node tests
+python -m pytest --cov=app --cov-report=html  # With coverage
+```
+
+**Frontend (Angular/Karma/Jasmine):**
+- **Test Framework**: Karma + Jasmine
+- **Test Files**: `frontendApp/src/**/*.spec.ts`
+- **Test Categories**:
+  - Components: Workflow editor, Node blocks, UI components
+  - Services: Dataset service, Workflow service, Auth service
+  - Guards: Authentication guards
+  - Utilities
+  - WIP Components Nodes 
+
+**Commands to run frontend tests:**
+```bash
+cd frontendApp
+npm test                    # Run tests
+npm run test:headless       # Headless mode
+ng test --code-coverage     # With coverage
+```
+
 
 ## Partners & roles
-
-*Enumerate all partner organizations and specify their roles in the development and planned operation of this component. Do this at a level which a)can be made public, b)supports the understanding of the concrete technical contributions (instead of "participates in development" specify the functionality, added value, etc.)*
 
 [Profenpoche](https://profenpoche.com/) (BB leader):
 
@@ -626,8 +1162,6 @@ Manual tests to prove individual functionalities.
 BME, cabrilog and Ikigaï are also partners available for beta-testing.
 
 ## Usage in the dataspace
-
-*Specify the Dataspace Enalbing Service Chain in which the BB will be used. This assumes that during development the block (lead) follows the service chain, contributes to this detailed design and implements the block to meet the integration requirements of the chain.*
 
 The Daav building block can be used as a data transformer to build new datasets from local data or from prometheus dataspace.
 

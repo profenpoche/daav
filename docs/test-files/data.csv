@@ -1,0 +1,4 @@
+user_id,action,timestamp
+1,login,2024-12-01 10:00:00
+2,upload,2024-12-01 10:15:00
+1,logout,2024-12-01 11:00:00
