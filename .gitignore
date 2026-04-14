@@ -61,6 +61,7 @@ package-lock.json
 /libpeerconnection.log
 testem.log
 /typings
+/docExamples
 
 
 
