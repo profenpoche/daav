@@ -186,14 +186,12 @@ async def _save_upload_file(file: UploadFile, current_user: CurrentUser, folder:
 async def getContentDataset(request: Request, data: ConnectionInfo, current_user: CurrentUser) -> DatasetContentResponse:
     """Get dataset content with permission check"""
     connection = data.dataset
-    
-    # Check permission if dataset has an ID
+
+    # If the frontend sends a dataset id, reload the full stored dataset from DB.
+    # This preserves sensitive fields like PTX token/refreshToken and avoids relying on partial front-end payload.
     if hasattr(connection, 'id') and connection.id:
-        can_access = await dataset_service.user_service.can_access_dataset(current_user, connection.id)
-        if not can_access:
-            logger.warning(f"User {current_user.username} denied access to dataset {connection.id}")
-            raise HTTPException(status_code=403, detail="Access denied")
-    
+        connection = await dataset_service.get_dataset(connection.id, current_user)
+
     pagination = data.pagination
     datasetParams = data.datasetParams
     if isinstance(connection, FileDataset):
@@ -222,14 +220,12 @@ async def getContentDataset(request: Request, data: ConnectionInfo, current_user
 async def getDfContentDataset(request: Request, data: ConnectionInfo, current_user: CurrentUser) -> NodeDataPandasDf:
     """Get dataset dataframe content with permission check"""
     connection = data.dataset
-    
-    # Check permission if dataset has an ID
+
+    # If the frontend sends a dataset id, reload the full stored dataset from DB.
+    # This preserves sensitive internal fields for the backend execution path.
     if hasattr(connection, 'id') and connection.id:
-        can_access = await dataset_service.user_service.can_access_dataset(current_user, connection.id)
-        if not can_access:
-            logger.warning(f"User {current_user.username} denied access to dataset {connection.id}")
-            raise HTTPException(status_code=403, detail="Access denied")
-    
+        connection = await dataset_service.get_dataset(connection.id, current_user)
+
     pagination = data.pagination
     datasetParams = data.datasetParams
     if isinstance(connection, FileDataset):
@@ -563,11 +559,11 @@ async def elastic_content(
 def getElasticContent(dataset: ElasticDataset, pagination: Pagination, datasetParams: DatasetParams) -> ElasticContentResponse:
     from elasticsearch import Elasticsearch, ApiError
     try:
-        if dataset.key != '':
+        if dataset.key:
             client = Elasticsearch(dataset.url, api_key=dataset.key)
-        elif dataset.user != '' and dataset.password != '':
+        elif dataset.user and dataset.password:
             client = Elasticsearch(dataset.url, basic_auth=(dataset.user, dataset.password))
-        elif dataset.bearerToken != '':
+        elif dataset.bearerToken:
             client = Elasticsearch(dataset.url, bearer_auth=dataset.bearerToken)
 
         client.indices.refresh(index=dataset.index)
@@ -670,7 +666,7 @@ async def getApiContent(connection: ApiDataset, pagination: Pagination) -> ApiCo
                
             authResponse = authRequest.json()
             access_token = authResponse.get('access_token')
-            headers = {'access_token': access_token}
+            headers = {'access_token': access_token,'authorization': f"Bearer {access_token}"}
         async with httpx.AsyncClient() as client:
             response = await client.get(API_URL, headers=headers)
             response.raise_for_status() 

@@ -1,10 +1,66 @@
-from typing import Annotated, Any, Dict, List, Literal, Optional, Union
+from typing import Annotated, Any, ClassVar, Dict, List, Literal, Optional, Union
+import re
+import ipaddress
+from urllib.parse import urlparse
 from bson import ObjectId
-from pydantic import BaseModel, Field, model_serializer, ConfigDict
-from beanie import Document, PydanticObjectId, UnionDoc, before_event, Insert 
+from pydantic import BaseModel, Field, model_serializer, model_validator, ConfigDict, field_validator
+from beanie import Document, PydanticObjectId, UnionDoc, before_event, after_event, Insert, Replace, Save
 from datetime import datetime
 from app.enums.type_connection import TypeConnection
 from fastapi_pagination import LimitOffsetPage
+from app.utils.encryption import encrypt_field, decrypt_field
+
+# SQL identifiers: only letters, digits, underscore (max 64 chars - MySQL limit)
+_SQL_IDENTIFIER_RE = re.compile(r'^[A-Za-z0-9_]{1,64}$')
+
+# Elasticsearch index names: letters, digits, underscore, hyphen, dot
+_ES_INDEX_RE = re.compile(r'^[a-z0-9_\-\.]{1,255}$')
+
+# Private / local networks to block to prevent SSRF
+_PRIVATE_NETWORKS = [
+    ipaddress.ip_network('10.0.0.0/8'),
+    ipaddress.ip_network('172.16.0.0/12'),
+    ipaddress.ip_network('192.168.0.0/16'),
+    ipaddress.ip_network('127.0.0.0/8'),
+    ipaddress.ip_network('169.254.0.0/16'),  # link-local / AWS metadata
+    ipaddress.ip_network('::1/128'),
+    ipaddress.ip_network('fc00::/7'),
+]
+
+def _validate_sql_identifier(value: Optional[str], field_name: str) -> Optional[str]:
+    if not value:
+        return value
+    if not _SQL_IDENTIFIER_RE.match(value):
+        raise ValueError(
+            f"'{field_name}' contains invalid characters. "
+            "Only alphanumeric characters and underscores are allowed (max 64)."
+        )
+    return value
+
+def _validate_no_ssrf(value: Optional[str], field_name: str) -> Optional[str]:
+    if not value:
+        return value
+    try:
+        parsed = urlparse(value)
+    except Exception:
+        raise ValueError(f"'{field_name}' is not a valid URL.")
+    if parsed.scheme not in ('http', 'https'):
+        raise ValueError(f"'{field_name}' must use http or https scheme.")
+    hostname = parsed.hostname or ''
+    if hostname.lower() in ('localhost', '0.0.0.0', ''):
+        raise ValueError(f"'{field_name}' must not point to localhost.")
+    try:
+        ip = ipaddress.ip_address(hostname)
+        for network in _PRIVATE_NETWORKS:
+            if ip in network:
+                raise ValueError(
+                    f"'{field_name}' must not point to a private or internal address."
+                )
+    except ValueError as exc:
+        # Re-raise only SSRF-related errors; hostname strings (non-IP) are fine
+        if 'private' in str(exc) or 'internal' in str(exc) or 'localhost' in str(exc):
+            raise
+    return value
 
 class DatasetMetadata(BaseModel):
     fileSize: Optional[str] = None
@@ -25,7 +81,35 @@ class Dataset(Document):
     # User ownership and sharing
     owner_id: Optional[str] = Field(default=None, description="ID of the user who owns this dataset")
     shared_with: List[str] = Field(default_factory=list, description="List of user IDs this dataset is shared with")
-    
+
+    # Subclasses declare their sensitive field names here
+    _sensitive_fields: ClassVar[List[str]] = []
+
+    @model_validator(mode='after')
+    def decrypt_sensitive_fields(self) -> 'Dataset':
+        """Decrypt sensitive fields after model instantiation (DB read or API input)."""
+        for field in self.__class__._sensitive_fields:
+            val = getattr(self, field, None)
+            if val:
+                object.__setattr__(self, field, decrypt_field(val))
+        return self
+
+    @before_event(Insert, Replace, Save)
+    async def encrypt_sensitive_fields(self):
+        """Encrypt sensitive fields before writing to MongoDB."""
+        for field in self.__class__._sensitive_fields:
+            val = getattr(self, field, None)
+            if val:
+                object.__setattr__(self, field, encrypt_field(val))
+
+    @after_event(Insert, Replace, Save)
+    async def restore_sensitive_fields(self):
+        """Decrypt sensitive fields back in-memory after the DB write."""
+        for field in self.__class__._sensitive_fields:
+            val = getattr(self, field, None)
+            if val:
+                object.__setattr__(self, field, decrypt_field(val))
+
     @before_event(Insert)
     async def generate_string_id(self):
         """Générer un ID string avant l'insertion"""
@@ -39,6 +123,8 @@ class Dataset(Document):
     
     class Settings:
         name = "datasets"
+        is_root = True
+        class_id = "type"
         use_state_management = True
         indexes = [
             [("type", 1)],
@@ -54,24 +140,61 @@ class Dataset(Document):
             data['id'] = str(data.pop('_id'))
         elif 'id' in data and data['id']:
             data['id'] = str(data['id'])
+
+        # Remove all sensitive fields from API output
+        for field in self._sensitive_fields:
+            if field in data:
+                data.pop(field)
+
         return data
 
 class MysqlDataset(Dataset):
     type: Literal['mysql']
+
+
+    class Settings:
+        class_id = "type"
+        class_id_value = "mysql"
+
     host: Optional[str] = None
     user: Optional[str] = None
     password: Optional[str] = None
     database: Optional[str] = None
     table: Optional[str] = None
 
+    _sensitive_fields: ClassVar[List[str]] = ['password']
+
+    @field_validator('database', mode='before')
+    @classmethod
+    def validate_database(cls, v):
+        return _validate_sql_identifier(v, 'database')
+
+    @field_validator('table', mode='before')
+    @classmethod
+    def validate_table(cls, v):
+        return _validate_sql_identifier(v, 'table')
+        
+
 class MongoDataset(Dataset):
     type: Literal['mongo']
+
+    class Settings:
+        class_id = "type"
+        class_id_value = "mongo"
+
     uri: Optional[str] = None
     database: Optional[str] = None
     collection: Optional[str] = None
 
+    _sensitive_fields: ClassVar[List[str]] = ['uri']
+
 class ElasticDataset(Dataset):
     type: Literal['elastic']
+
+    class Settings:
+        class_id = "type"
+        class_id_value = "elastic"
+
     url: Optional[str] = None
     user: Optional[str] = None
     key: Optional[str] = None
@@ -79,16 +202,49 @@ class ElasticDataset(Dataset):
     password: Optional[str] = None
     index: Optional[str] = None
 
+    _sensitive_fields: ClassVar[List[str]] = ['password', 'key', 'bearerToken']
+
+    @field_validator('url', mode='before')
+    @classmethod
+    def validate_url(cls, v):
+        return _validate_no_ssrf(v, 'url')
+
+    @field_validator('index', mode='before')
+    @classmethod
+    def validate_index(cls, v):
+        if not v:
+            return v
+        if v in ('*', '_all', '.*'):
+            raise ValueError("'index' must not be a wildcard expression.")
+        if not _ES_INDEX_RE.match(v):
+            raise ValueError(
+                "'index' contains invalid characters. "
+                "Only lowercase alphanumeric, underscore, hyphen, and dot are allowed (max 255)."
+            )
+        return v
+
 class PTXDataset(Dataset):
     type: Literal['ptx']
+
+    class Settings:
+        class_id = "type"
+        class_id_value = "ptx"
+
     url: Optional[str] = None
     token: Optional[str] = None
     refreshToken: Optional[str] = None
     service_key: Optional[str] = None
     secret_key: Optional[str] = None
 
+    _sensitive_fields: ClassVar[List[str]] = ['token', 'refreshToken', 'secret_key', 'service_key']
+
 class FileDataset(Dataset):
     type: Literal['file']
+
+    class Settings:
+        class_id = "type"
+        class_id_value = "file"
+
     filePath: Optional[str] = None
     folder: Optional[str] = None
     inputType: Optional[str] = None
@@ -98,6 +254,11 @@ class FileDataset(Dataset):
 
 class ApiDataset(Dataset):
     type: Literal['api']
+
+    class Settings:
+        class_id = "type"
+        class_id_value = "api"
+
     apiAuth: Optional[str] = None
     url: Optional[str] = None
     authUrl: Optional[str] = None
@@ -105,6 +266,18 @@ class ApiDataset(Dataset):
     basicToken: Optional[str] = None
     clientId: Optional[str] = None
     clientSecret: Optional[str] = None
+
+    _sensitive_fields: ClassVar[List[str]] = ['bearerToken', 'basicToken', 'clientSecret']
+
+    @field_validator('url', mode='before')
+    @classmethod
+    def validate_url(cls, v):
+        return _validate_no_ssrf(v, 'url')
+
+    @field_validator('authUrl', mode='before')
+    @classmethod
+    def validate_auth_url(cls, v):
+        return _validate_no_ssrf(v, 'authUrl')
 
 DatasetUnion = Annotated[
     Union[MysqlDataset, MongoDataset, ElasticDataset, PTXDataset, FileDataset, ApiDataset],
@@ -119,6 +292,16 @@ class Pagination(BaseModel):
 class DatasetParams(BaseModel):
     database: Optional[str] = None
     table: Optional[str] = None
+
+    @field_validator('database', mode='before')
+    @classmethod
+    def validate_database(cls, v):
+        return _validate_sql_identifier(v, 'database')
+
+    @field_validator('table', mode='before')
+    @classmethod
+    def validate_table(cls, v):
+        return _validate_sql_identifier(v, 'table')
 
 class ConnectionInfo(BaseModel):
     dataset: DatasetUnion

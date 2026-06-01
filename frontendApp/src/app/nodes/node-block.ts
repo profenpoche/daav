@@ -4,7 +4,7 @@ import { Node } from "../models/interfaces/node";
 import { StatusControl } from "../components/widgets/status-component/status-component.component";
 import { AreaPlugin } from "rete-area-plugin";
 import { AreaExtra, Schemes, WorkflowEditor } from "../core/workflow-editor";
-import { NodeComponent } from "rete-angular-plugin/16";
+import { NodeComponent } from "rete-angular-plugin/19";
 import { NodeLoaderControl } from '../components/widgets/node-loader-widget/node-loader-widget.component';
 import { NodeData } from '../models/node-data';
 import { DatasetSchema } from "../models/dataset-schema";
@@ -89,7 +89,7 @@ export abstract class NodeBlock<G=DatasetSchema,T = NodeData<G>> extends Classic
     updateStatus(status : StatusNode,statusMessage?:string,errorStacktrace? : string[]){
       this.status = status;
       this.statusMessage = statusMessage;
-      this.errorStacktrace = this.errorStacktrace;
+      this.errorStacktrace = errorStacktrace;
       this.statusControl.status=status;
       this.statusControl.statusMessage=statusMessage;
       this.statusControl.errorStacktrace=errorStacktrace;
@@ -120,7 +120,7 @@ export abstract class NodeBlock<G=DatasetSchema,T = NodeData<G>> extends Classic
         if (response?.data) {
             // Update node data if needed
             Object.assign(this.data(), response.data);
-            
+
             // Update area to reflect changes
             this.area.update("node", this.id);
         }

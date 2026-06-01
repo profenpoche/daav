@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     # Server
     host: str = "0.0.0.0"
     port: int = 8000
+
+    # External API timeouts (Visions/PDC)
+    vision_api_timeout_seconds: int = Field(
+        default=30,
+        ge=30,
+        description="Default timeout in seconds for Visions/PDC HTTP calls"
+    )
     
     # Database
     mongodb_url: str = "mongodb://localhost:27017"
@@ -73,7 +80,16 @@ class Settings(BaseSettings):
         default=90,
         description="Refresh token expiration time in days"
     )
-    
+
+    # Field Encryption Configuration
+    field_encryption_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Fernet key for encrypting sensitive dataset fields (passwords, tokens) at rest in MongoDB. "
+            "Generate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+        )
+    )
+
     # Email Configuration (SMTP)
     smtp_host: str = Field(
         default="smtp.gmail.com",
@@ -190,8 +206,23 @@ class Settings(BaseSettings):
         elif len(v) < 32:
             raise ValueError('JWT_SECRET_KEY must be at least 32 characters long for security')
         return v
-    
-    @field_validator('jwt_access_token_expire_minutes', 'jwt_refresh_token_expire_days', mode='before')
+
+    @field_validator('field_encryption_key')
+    @classmethod
+    def validate_field_encryption_key(cls, v):
+        """Validate Fernet key format. If not set, key is derived from JWT_SECRET_KEY at runtime."""
+        if v is None:
+            return v  # _get_fernet() will derive from JWT_SECRET_KEY automatically
+        from cryptography.fernet import Fernet
+        try:
+            Fernet(v.encode())
+        except Exception:
+            raise ValueError(
+                "FIELD_ENCRYPTION_KEY must be a valid Fernet key. "
+                "Generate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            )
+        return v
+
     @classmethod
     def parse_jwt_expiration(cls, v):
         """Parse JWT expiration times from string to int"""

@@ -7,7 +7,7 @@ import re
 import time
 import traceback
 from typing import List
-from fastapi import APIRouter, BackgroundTasks, Header, status, Request, Response , HTTPException
+from fastapi import APIRouter, BackgroundTasks, Header, status, Request, Response , HTTPException, Query
 from app.models.interface.dataset_interface import *
 import requests
 import logging
@@ -30,6 +30,7 @@ from app.services.user_service import UserService
 from app.services.workflow_service import WorkflowService
 from app.utils.utils import decodeDictionary
 from app.utils.auth_utils import authenticate_m2m_credentials, AuthenticatedUser
+from app.middleware.auth import CurrentUser
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -40,22 +41,33 @@ logging.basicConfig(filename = 'app.log', level=logging.INFO, format='%(asctime)
 dataset_service = DatasetService()
 workflow_service = WorkflowService()
 user_service = UserService()
-pdc_service = PdcService()
+pdc_service = PdcService(timeout=settings.vision_api_timeout_seconds)
 
 _config_cache = {}
 _config_timestamp = {}
 
 
+def _resolve_timeout(timeout_seconds: Optional[int]) -> int:
+    """Resolve effective timeout with a hard minimum of 30s."""
+    resolved = timeout_seconds if timeout_seconds is not None else settings.vision_api_timeout_seconds
+    return max(30, int(resolved))
+
+
 
 @router.get("/{id}")
-async def get_ptx_data(id: str):
-    connection = await dataset_service.get_dataset(id)
-    config = get_private_configuration(connection)
+async def get_ptx_data(
+    id: str,
+    current_user: CurrentUser,
+    timeout_seconds: Annotated[Optional[int], Query(ge=30, description="Visions API timeout in seconds")] = None,
+):
+    timeout = _resolve_timeout(timeout_seconds)
+    connection = await dataset_service.get_dataset(id, current_user)
+    config = await get_private_configuration(connection)
     catalog_uri = config.get("catalogUri")
-    pdc_data = pdc_get_request(connection, "/")
+    pdc_data = await pdc_get_request(connection, "/", timeout_seconds=timeout)
 
     async def fetch_catalog_item(client: httpx.AsyncClient, content: dict):
-        response = await client.get(content["@id"])
+        response = await client.get(content["@id"], timeout=timeout)
         res = response.json()
         participant_id = None
         owner_name = "Unknown"
@@ -68,7 +80,7 @@ async def get_ptx_data(id: str):
 
         if participant_id and catalog_uri:
             try:
-                participant_response = await client.get(f"{catalog_uri}participants/{participant_id}")
+                participant_response = await client.get(f"{catalog_uri}participants/{participant_id}", timeout=timeout)
                 participant = participant_response.json()
                 owner_name = participant.get("legalName")
                 owner_logo = participant.get("logo")
@@ -86,7 +98,7 @@ async def get_ptx_data(id: str):
 
     catalog = []
     if "content" in pdc_data and "ptx:catalog" in pdc_data["content"]:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             tasks = [fetch_catalog_item(client, content) 
                     for content in pdc_data["content"]["ptx:catalog"]]
             catalog = await asyncio.gather(*tasks)
@@ -94,16 +106,22 @@ async def get_ptx_data(id: str):
     return {"catalog": catalog}
 
 @router.put("/dataResources/{connection_id}")
-async def update_data_resource(connection_id: str, request: Request):
+async def update_data_resource(
+    connection_id: str,
+    request: Request,
+    current_user: CurrentUser,
+    timeout_seconds: Annotated[Optional[int], Query(ge=30, description="Visions API timeout in seconds")] = None,
+):
     """
     Update a data resource in a PDC connection.
     """
     try:
-        connection = await dataset_service.get_dataset(connection_id)
+        timeout = _resolve_timeout(timeout_seconds)
+        connection = await dataset_service.get_dataset(connection_id, current_user)
         if (not isinstance (connection,PTXDataset)):
             raise HTTPException(status_code=400, detail="Invalid connection type. Expected PTXDataset.")
 
-        config = get_private_configuration(connection)
+        config = await get_private_configuration(connection)
         
         body = await request.json()
         dataResourcesId = body.get("dataResourceId")
@@ -115,15 +133,15 @@ async def update_data_resource(connection_id: str, request: Request):
         }
 
         dataResource_url = f"{config.get('catalogUri')}dataresources/{dataResourcesId}"
-        dataResources = pdc_service.fetch_dataResource(dataResource_url, headers)
+        dataResources = pdc_service.fetch_dataResource(dataResource_url, headers, timeout=timeout)
         representation = dataResources.representation
         representation.url = newUrl
 
         payload = representation.model_dump_json()
 
         api_url = f"{config.get('catalogUri')}datarepresentations/{representation.id}"
-        async with httpx.AsyncClient() as client:
-            response = await client.put(api_url, data=payload, headers=headers)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.put(api_url, data=payload, headers=headers, timeout=timeout)
             if response.status_code == 200:
                 return {
                     "response": response.json()
@@ -139,19 +157,24 @@ async def update_data_resource(connection_id: str, request: Request):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/dataResources/{connection_id}")
-async def get_data_resources(connection_id: str):
+async def get_data_resources(
+    connection_id: str,
+    current_user: CurrentUser,
+    timeout_seconds: Annotated[Optional[int], Query(ge=30, description="Visions API timeout in seconds")] = None,
+):
     """
     Get data resources from a PDC connection.
     """
     try:
-        connection = await dataset_service.get_dataset(connection_id)
-        pdc_data = pdc_get_request(connection, "/")
+        timeout = _resolve_timeout(timeout_seconds)
+        connection = await dataset_service.get_dataset(connection_id, current_user)
+        pdc_data = await pdc_get_request(connection, "/", timeout_seconds=timeout)
         
         data_resources = []
         if "content" in pdc_data and "ptx:catalog" in pdc_data["content"]:
             for content in pdc_data["content"]["ptx:catalog"]:
                 if content["@type"] == "ptx:dataresources":
-                    res = requests.get(content["@id"]).json()
+                    res = requests.get(content["@id"], timeout=timeout).json()
                     data = PdcDataResource.model_validate(res)
                     data_resources.append(data)
         
@@ -374,16 +397,21 @@ async def read_input(request: Request, response: Response, headers: Annotated[Pd
     }
 
 @router.get("/participants_id/{connection_id}")
-async def get_participants_id_from_connection(connection_id: str) -> List[str]:
+async def get_participants_id_from_connection(
+    connection_id: str,
+    current_user: CurrentUser,
+    timeout_seconds: Annotated[Optional[int], Query(ge=30, description="Visions API timeout in seconds")] = None,
+) -> List[str]:
     """
     Extract unique participants from a connection's catalog
     """
-    connection = await dataset_service.get_dataset(connection_id)
-    pdc_data = pdc_get_request(connection, "/")
+    timeout = _resolve_timeout(timeout_seconds)
+    connection = await dataset_service.get_dataset(connection_id, current_user)
+    pdc_data = await pdc_get_request(connection, "/", timeout_seconds=timeout)
     participants_id = set()
 
     if "content" in pdc_data and "ptx:catalog" in pdc_data["content"]:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             tasks = [fetch_participant_id(client, content) 
                     for content in pdc_data["content"]["ptx:catalog"]]
             results = await asyncio.gather(*tasks)
@@ -395,7 +423,7 @@ async def get_participants_id_from_connection(connection_id: str) -> List[str]:
 async def fetch_participant_id(client: httpx.AsyncClient, content: dict) -> Optional[str]:
     """Fetch participant ID from content URL"""
     try:
-        response = await client.get(content["@id"])
+        response = await client.get(content["@id"], timeout=client.timeout)
         if response.status_code == 200:
             res = response.json()
             
@@ -409,18 +437,24 @@ async def fetch_participant_id(client: httpx.AsyncClient, content: dict) -> Opti
     return None
 
 @router.get("/contracts/use-case/{connection_id}")
-async def get_use_case_contract(connection_id: str, hasSigned:Optional[bool] = None):
+async def get_use_case_contract(
+    connection_id: str,
+    current_user: CurrentUser,
+    hasSigned: Optional[bool] = None,
+    timeout_seconds: Annotated[Optional[int], Query(ge=30, description="Visions API timeout in seconds")] = None,
+):
     #URI pointing to your participant in the catalog, encode it in base64
-    connection = await dataset_service.get_dataset(connection_id)
-    config = get_private_configuration(connection)
+    timeout = _resolve_timeout(timeout_seconds)
+    connection = await dataset_service.get_dataset(connection_id, current_user)
+    config = await get_private_configuration(connection)
     catalog_uri = config.get("catalogUri")
     contract_uri = config.get("contractUri")
-    participants_id = await get_participants_id_from_connection(connection_id)
+    participants_id = await get_participants_id_from_connection(connection_id, current_user, timeout_seconds=timeout)
 
     all_use_case_contracts = []
     
     # create a new async client for making requests
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         for participant_id in participants_id:
             participant_url = f"{catalog_uri}catalog/participants/{participant_id}"
             encoded_url = b64_encode(participant_url)
@@ -431,7 +465,7 @@ async def get_use_case_contract(connection_id: str, hasSigned:Optional[bool] = N
                 params["hasSigned"] = "true" if hasSigned else "false"
 
             # use the async client to fetch contracts
-            response = await client.get(contract_url, params=params)
+            response = await client.get(contract_url, params=params, timeout=timeout)
 
             if response.status_code == 200:
                 contracts_data = response.json()
@@ -440,14 +474,14 @@ async def get_use_case_contract(connection_id: str, hasSigned:Optional[bool] = N
                         contract = PdcContract.model_validate(contract)
                         
                         # Fetch ecosystem
-                        ecosystem = await pdc_service.fetch_ecosystem_async(client, contract.ecosystem) if contract.ecosystem else None
+                        ecosystem = await pdc_service.fetch_ecosystem_async(client, contract.ecosystem, timeout=timeout) if contract.ecosystem else None
                         
                         if participant_id == ecosystem.orchestrator:
                             contract.name = ecosystem.name
                             
                             # Fetch orchestrator
                             if contract.orchestrator:
-                                orchestrator = await pdc_service.fetch_participant_async(client, contract.orchestrator)
+                                orchestrator = await pdc_service.fetch_participant_async(client, contract.orchestrator, timeout=timeout)
                                 contract.logo = orchestrator.get("logo", "") if orchestrator else ""
                             
                             all_use_case_contracts.append(contract)
@@ -471,7 +505,7 @@ async def get_use_case_contract(connection_id: str, hasSigned:Optional[bool] = N
                                     has_data_provider_role):
                                     for service in participant.offerings:
                                         url = f"{catalog_uri}catalog/serviceofferings/{service.serviceOffering}"
-                                        data_provider_tasks.append(pdc_service.fetch_service_offering_async(client, url))
+                                        data_provider_tasks.append(pdc_service.fetch_service_offering_async(client, url, timeout=timeout))
 
                             data_provider_services = await asyncio.gather(*data_provider_tasks)
                             contract.dataProviders.extend([
@@ -485,7 +519,7 @@ async def get_use_case_contract(connection_id: str, hasSigned:Optional[bool] = N
                                 if participant_id == participant.participant:
                                     for service in participant.offerings:
                                         url = f"{catalog_uri}catalog/serviceofferings/{service.serviceOffering}"
-                                        purpose_tasks.append(pdc_service.fetch_service_offering_async(client, url))
+                                        purpose_tasks.append(pdc_service.fetch_service_offering_async(client, url, timeout=timeout))
 
                             purpose_services = await asyncio.gather(*purpose_tasks)
                             contract.purposes.extend([
@@ -502,27 +536,32 @@ async def get_use_case_contract(connection_id: str, hasSigned:Optional[bool] = N
     return all_use_case_contracts
 
 @router.get("/serviceChain/{connection_id}")
-async def get_service_Chain(connection_id: str):
-    connection = await dataset_service.get_dataset(connection_id)
-    config = get_private_configuration(connection)
+async def get_service_Chain(
+    connection_id: str,
+    current_user: CurrentUser,
+    timeout_seconds: Annotated[Optional[int], Query(ge=30, description="Visions API timeout in seconds")] = None,
+):
+    timeout = _resolve_timeout(timeout_seconds)
+    connection = await dataset_service.get_dataset(connection_id, current_user)
+    config = await get_private_configuration(connection)
     catalog_uri = config.get("catalogUri")
     contract_uri = config.get("contractUri")
-    participants_id = await get_participants_id_from_connection(connection_id)
+    participants_id = await get_participants_id_from_connection(connection_id, current_user, timeout_seconds=timeout)
     
     result = []
     for participant_id in participants_id:
         participant_url = f"{catalog_uri}catalog/participants/{participant_id}"
         encoded_url = b64_encode(participant_url)
-        contract_url = f"{contract_uri}/contracts/for/{encoded_url}"
+        contract_url = f"{contract_uri}contracts/for/{encoded_url}"
 
-        response = requests.get(contract_url)
+        response = requests.get(contract_url, timeout=timeout)
 
         if response.status_code == 200:
             contracts_data = response.json()
             for contract in contracts_data.get("contracts"):
                 try:
                     contract = PdcContract.model_validate(contract)
-                    ecosystem = pdc_service.fetch_ecosystem(contract.ecosystem) if contract.ecosystem else None
+                    ecosystem = pdc_service.fetch_ecosystem(contract.ecosystem, timeout=timeout) if contract.ecosystem else None
                     if participant_id == ecosystem.orchestrator	: 
                         result.append({
                             "contract_id": contract.id,
@@ -539,7 +578,12 @@ async def get_service_Chain(connection_id: str):
 
 
 @router.get("/dataExchanges/{connection_id}")
-async def get_data_exchanges(connection_id: str, request: Request):
+async def get_data_exchanges(
+    connection_id: str,
+    request: Request,
+    current_user: CurrentUser,
+    timeout_seconds: Annotated[Optional[int], Query(ge=30, description="Visions API timeout in seconds")] = None,
+):
     """
     Retrieve successful data exchange history for a given connection
     For each exchange with status "IMPORT_SUCCESS", fetch details of associated resources
@@ -577,15 +621,18 @@ async def get_data_exchanges(connection_id: str, request: Request):
             ...
         ]
     }
+
+    Query parameter: timeout_seconds (>=30) can override the default Visions API timeout for this request.
     """
     try:
-        connection = await dataset_service.get_dataset(connection_id)
-        config = get_private_configuration(connection)
+        timeout = _resolve_timeout(timeout_seconds)
+        connection = await dataset_service.get_dataset(connection_id, current_user)
+        config = await get_private_configuration(connection)
         pdc_endpoint = config.get("endpoint")
         data_exchanges_url = f"{pdc_endpoint}dataexchanges"
         participant_url = f"{config.get('catalogUri')}participants/"
         
-        response = requests.get(data_exchanges_url)
+        response = requests.get(data_exchanges_url, timeout=timeout)
         if response.status_code != 200:
             raise HTTPException(
                 status_code=response.status_code,
@@ -604,11 +651,11 @@ async def get_data_exchanges(connection_id: str, request: Request):
                 return resource_cache[resource_url]
             
             try:
-                resource_response = requests.get(resource_url)
+                resource_response = requests.get(resource_url, timeout=timeout)
                 if resource_response.status_code == 200:
                     resource_data = PdcDataResource.model_validate(resource_response.json())
                     owner_url =  f"{participant_url}{resource_data.producedBy}" if resource_data.producedBy else None
-                    owner_details = pdc_service.fetch_participant(owner_url) if owner_url else {}
+                    owner_details = pdc_service.fetch_participant(owner_url, timeout=timeout) if owner_url else {}
                     details = {
                         "id": resource_data.id,
                         "name": resource_data.name,
@@ -687,11 +734,17 @@ async def get_data_exchanges(connection_id: str, request: Request):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     
 @router.post("/trigger-data-exchange/{connection_id}")
-async def trigger_data_exchange(connection_id: str, request: Request):
+async def trigger_data_exchange(
+    connection_id: str,
+    request: Request,
+    current_user: CurrentUser,
+    timeout_seconds: Annotated[Optional[int], Query(ge=30, description="Visions API timeout in seconds")] = None,
+):
     try:
-        connection = await dataset_service.get_dataset(connection_id)
+        timeout = _resolve_timeout(timeout_seconds)
+        connection = await dataset_service.get_dataset(connection_id, current_user)
         
-        config = get_private_configuration(connection)
+        config = await get_private_configuration(connection)
         pdc_endpoint = config.get("endpoint")
         contract_uri = config.get("contractUri")
         
@@ -713,8 +766,8 @@ async def trigger_data_exchange(connection_id: str, request: Request):
             'Content-Type': 'application/json'
         }
         
-        async with httpx.AsyncClient() as client:
-            response = await client.post(exchange_url, json=payload, headers=headers)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(exchange_url, json=payload, headers=headers, timeout=timeout)
         
         if response.status_code == 200:
             return {
@@ -732,11 +785,17 @@ async def trigger_data_exchange(connection_id: str, request: Request):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/triggerServiceChain/{connection_id}")
-async def trigger_service_chain(connection_id: str, request: Request):
+async def trigger_service_chain(
+    connection_id: str,
+    request: Request,
+    current_user: CurrentUser,
+    timeout_seconds: Annotated[Optional[int], Query(ge=30, description="Visions API timeout in seconds")] = None,
+):
     try:
-        connection = await dataset_service.get_dataset(connection_id)
+        timeout = _resolve_timeout(timeout_seconds)
+        connection = await dataset_service.get_dataset(connection_id, current_user)
         
-        config = get_private_configuration(connection)
+        config = await get_private_configuration(connection)
         pdc_endpoint = config.get("endpoint")
         contract_uri = config.get("contractUri")
         
@@ -757,8 +816,8 @@ async def trigger_service_chain(connection_id: str, request: Request):
             'Content-Type': 'application/json'
         }
         
-        async with httpx.AsyncClient() as client:
-            response = await client.post(exchange_url, json=payload, headers=headers)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(exchange_url, json=payload, headers=headers, timeout=timeout)
         
         if response.status_code == 200:
             return {
@@ -776,17 +835,21 @@ async def trigger_service_chain(connection_id: str, request: Request):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/contracts/bilaterals/{connection_id}")
-async def get_billateral_contract(connection_id: str):
+async def get_billateral_contract(
+    connection_id: str,
+    current_user: CurrentUser,
+    timeout_seconds: Annotated[Optional[int], Query(ge=30, description="Visions API timeout in seconds")] = None,
+):
     #URI pointing to your participant in the catalog, encode it in base64
     try:
-        connection = await dataset_service.get_dataset(connection_id)
+        connection = await dataset_service.get_dataset(connection_id, current_user)
         if not connection:
             raise HTTPException(status_code=404, detail="Connection not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error finding connection: {str(e)}")
     
     try:
-        config = get_private_configuration(connection)
+        config = await get_private_configuration(connection)
         catalog_uri = config.get("catalogUri")
         contract_uri = config.get("contractUri")
         endpoint = config.get("endpoint")
@@ -796,7 +859,8 @@ async def get_billateral_contract(connection_id: str):
         raise HTTPException(status_code=500, detail=f"Error loading private configuration: {str(e)}")
     
     try:
-        participants_id = await get_participants_id_from_connection(connection_id)
+        timeout = _resolve_timeout(timeout_seconds)
+        participants_id = await get_participants_id_from_connection(connection_id, current_user)
         if not participants_id:
             raise ValueError("No participants found for this connection")
     except Exception as e:
@@ -808,7 +872,7 @@ async def get_billateral_contract(connection_id: str):
         encoded_url = b64_encode(participant_url)
         bilateral_url = f"{contract_uri}/bilaterals/for/{encoded_url}"
 
-        response = requests.get(bilateral_url)
+        response = requests.get(bilateral_url, timeout=timeout)
 
         if response.status_code == 200:
             contracts_data = response.json()
@@ -835,15 +899,42 @@ def b64_encode(url: str):
     encoded_url = base64.b64encode(url.encode('utf-8')).decode('utf-8')
     return encoded_url
 
-def pdc_get_request(connection: Dataset, url):
-    r = requests.get(connection.url + url, headers={
-        "Authorization": "Bearer " + connection.token
-    })
-    if 'json' in r.headers['Content-Type']:
-        res = r.json()
-    else:
-        res = r.content
-    return res
+async def pdc_get_request(connection: Dataset, url, timeout_seconds: Optional[int] = None):
+    timeout = _resolve_timeout(timeout_seconds)
+
+    def _request_with_token() -> requests.Response:
+        return requests.get(
+            connection.url + url,
+            headers={"Authorization": "Bearer " + connection.token},
+            timeout=timeout,
+        )
+
+    r = _request_with_token()
+
+    if r.status_code in (401, 403) and isinstance(connection, PTXDataset):
+        renewed = await dataset_service.ensure_runtime_ptx_tokens(connection)
+        if renewed and connection.token:
+            r = _request_with_token()
+
+    if r.status_code in (401, 403):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=(
+                "PTX token invalid or expired for this connection. "
+                "Refresh/relogin attempt failed. Update PTX credentials."
+            ),
+        )
+
+    if r.status_code >= 400:
+        raise HTTPException(
+            status_code=r.status_code,
+            detail=f"PTX request failed: {r.text}",
+        )
+
+    content_type = r.headers.get("Content-Type", "")
+    if "json" in content_type.lower():
+        return r.json()
+    return r.content
 
 def write_input_append(file: str, data: str):
     """Append data to existing file with proper JSON merging."""
@@ -901,7 +992,7 @@ def write_input(file: str, data: str):
         f.write(data)
 
 
-def get_private_configuration(connection):
+async def get_private_configuration(connection):
     """Get private configuration with caching"""
     cache_key = f"{connection.id}"
     
@@ -913,7 +1004,7 @@ def get_private_configuration(connection):
         return _config_cache[cache_key]
     
     # if not cached, fetch the configuration
-    res = pdc_get_request(connection, "/private/configuration/")
+    res = await pdc_get_request(connection, "/private/configuration/")
     if "content" in res:
         config = {
             "endpoint": res["content"].get("endpoint"),
@@ -928,8 +1019,8 @@ def get_private_configuration(connection):
     else:
         raise ValueError("Error retrieving configuration")
 
-def get_serviceoffering_by_id(id: str, connection):
-    conf = get_private_configuration(connection)
+async def get_serviceoffering_by_id(id: str, connection):
+    conf = await get_private_configuration(connection)
     url = conf["catalogUri"] + "catalog/serviceofferings/" + id
     return pdc_service.fetch_service_offering(url)
 
